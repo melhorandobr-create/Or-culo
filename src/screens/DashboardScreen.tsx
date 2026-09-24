@@ -166,7 +166,7 @@ export default function DashboardScreen() {
               >
                 <View style={styles.caseRowTop}>
                   <Text style={styles.caseId}>CASO #{r.id.slice(0, 6).toUpperCase()}</Text>
-                  {r.secretClearance && (
+                  {r.classification === "SECRETO" && (
                     <View style={styles.secretBadge}>
                       <Text style={styles.secretBadgeText}>SECRETO</Text>
                     </View>

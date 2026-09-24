@@ -84,7 +84,7 @@ export default function TerritorialMapScreen() {
             <Marker
               key={r.id}
               coordinate={{ latitude: r.lat, longitude: r.lng }}
-              pinColor={r.secretClearance ? color.danger : color.primary}
+              pinColor={r.classification === "SECRETO" ? color.danger : color.primary}
               title={r.title || r.displayName}
               onPress={() => navigation.navigate("ReportDetail", { reportId: r.id })}
             />
@@ -168,7 +168,7 @@ export default function TerritorialMapScreen() {
             ) : (
               reports.slice(0, 6).map((r: any) => (
                 <Pressable key={r.id} style={styles.caseRow} onPress={() => navigation.navigate("ReportDetail", { reportId: r.id })}>
-                  <View style={[styles.dot, { backgroundColor: r.secretClearance ? color.danger : color.primary }]} />
+                  <View style={[styles.dot, { backgroundColor: r.classification === "SECRETO" ? color.danger : color.primary }]} />
                   <Text style={styles.caseRowTitle} numberOfLines={1}>{r.title || r.displayName}</Text>
                   <Ionicons name="chevron-forward" size={14} color={color.textFaint} />
                 </Pressable>

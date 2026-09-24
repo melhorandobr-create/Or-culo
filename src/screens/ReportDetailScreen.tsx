@@ -41,14 +41,13 @@ export default function ReportDetailScreen() {
     if (!reportId) return;
     setError(null);
     try {
-      const [reportRes, timelineRes, hypothesesRes] = await Promise.all([
+      const [reportRes, intelRes] = await Promise.all([
         api.getReport(reportId),
-        api.getReportTimeline(reportId).catch(() => ({ events: [] })),
-        api.listCaseHypotheses(reportId).catch(() => ({ hypotheses: [] })),
+        api.getCaseIntelligence(reportId),
       ]);
       setReport(reportRes.report);
-      setTimeline((timelineRes as any).events || []);
-      setHypotheses((hypothesesRes as any).hypotheses || []);
+      setTimeline(intelRes.timeline || []);
+      setHypotheses(intelRes.hypotheses || []);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Sem conexão com o servidor.");
     } finally {
@@ -140,7 +139,7 @@ export default function ReportDetailScreen() {
         <Text style={styles.title}>{report?.title || report?.displayName || "Sem título"}</Text>
 
         <View style={styles.chipRow}>
-          {report?.secretClearance && (
+          {report?.classification === "SECRETO" && (
             <View style={[styles.chip, { backgroundColor: color.dangerTint }]}>
               <Ionicons name="shield-outline" size={12} color={color.danger} />
               <Text style={[styles.chipText, { color: color.danger }]}>SECRETO</Text>
@@ -172,11 +171,12 @@ export default function ReportDetailScreen() {
                     {i < timeline.length - 1 && <View style={styles.timelineLine} />}
                   </View>
                   <View style={{ flex: 1, paddingBottom: 20 }}>
-                    <Text style={styles.timelineTitle}>{ev.title || ev.action || "Evento"}</Text>
+                    <Text style={styles.timelineTitle}>{ev.title}</Text>
                     <Text style={styles.timelineMeta}>
-                      {ev.time || (ev.createdAt ? new Date(ev.createdAt).toLocaleString("pt-BR") : "")}
+                      {ev.occurredAt ? new Date(ev.occurredAt).toLocaleString("pt-BR") : ""}
+                      {ev.factType ? ` · ${ev.factType}` : ""}
                     </Text>
-                    {ev.detail ? <Text style={styles.timelineDetail}>{ev.detail}</Text> : null}
+                    {ev.description ? <Text style={styles.timelineDetail}>{ev.description}</Text> : null}
                   </View>
                 </View>
               ))
@@ -216,8 +216,15 @@ export default function ReportDetailScreen() {
             ) : (
               hypotheses.map((h, i) => (
                 <View key={h.id || i} style={styles.card}>
-                  <Text style={styles.hypothesisTitle}>{h.title}</Text>
-                  {h.description ? <Text style={styles.hypothesisDesc}>{h.description}</Text> : null}
+                  <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                    <Text style={[styles.hypothesisTitle, { flex: 1 }]}>{h.statement}</Text>
+                    {h.confidence ? (
+                      <View style={[styles.chip, { backgroundColor: color.infoTint }]}>
+                        <Text style={[styles.chipText, { color: color.primary }]}>{h.confidence}</Text>
+                      </View>
+                    ) : null}
+                  </View>
+                  {h.supportingEvidence ? <Text style={styles.hypothesisDesc}>{h.supportingEvidence}</Text> : null}
                 </View>
               ))
             )}

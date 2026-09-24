@@ -65,16 +65,42 @@ export interface LoginResult {
   user: PublicUser;
 }
 
+// classification: 'RESERVADO' | 'SECRETO' (confirmado em routes/caseIntelligence.js
+// canView: `report.classification === 'SECRETO' && !user.secretClearance`).
 export interface Report {
   id: string;
   ownerId: string;
   displayName?: string;
   title?: string;
+  description?: string;
   status?: string;
-  secretClearance?: boolean;
+  classification?: string;
+  riskLevel?: string;
+  operationPhase?: string;
+  authorizationStatus?: string;
+  lat?: number;
+  lng?: number;
   createdAt?: number;
   updatedAt?: number;
   [key: string]: unknown;
+}
+
+export interface CaseIntelligence {
+  entities: unknown[];
+  relationships: unknown[];
+  timeline: unknown[];
+  hypotheses: unknown[];
+  command: {
+    riskLevel: string;
+    operationPhase: string;
+    authorizationStatus: string;
+    pendingTasks: number;
+    overdueTasks: number;
+    evidenceCount: number;
+    evidenceIntegrityCoverage: number;
+    lastUpdatedAt?: number;
+    openHypotheses: number;
+  };
 }
 
 export interface AccessRequest {
@@ -222,10 +248,6 @@ export const api = {
     return request<void>(`/reports/${id}`, { method: "DELETE" });
   },
 
-  async getReportTimeline(id: string) {
-    return request<{ events: unknown[] }>(`/reports/${id}/timeline`);
-  },
-
   async listReportTasks(id: string) {
     return request<{ tasks: unknown[] }>(`/reports/${id}/tasks`);
   },
@@ -240,16 +262,30 @@ export const api = {
     );
   },
 
-  // ---- /case-intelligence/:reportId/... ----
-  async listCaseEntities(reportId: string) {
-    return request<{ entities: unknown[] }>(`/case-intelligence/${reportId}/entities`);
+  // ---- /case-intelligence/:reportId ----
+  // Endpoint único e combinado — confirmado no código real: devolve entidades,
+  // relacionamentos, cronologia, hipóteses e um resumo "command" (riskLevel,
+  // operationPhase, tarefas pendentes/atrasadas, cobertura de integridade
+  // de evidências, hipóteses em aberto). Não existem GETs separados.
+  async getCaseIntelligence(reportId: string) {
+    return request<CaseIntelligence>(`/case-intelligence/${reportId}`);
   },
 
-  async listCaseHypotheses(reportId: string) {
-    return request<{ hypotheses: unknown[] }>(`/case-intelligence/${reportId}/hypotheses`);
+  async createCaseEntity(reportId: string, fields: { name: string; type: string; aliases?: string; notes?: string; source?: string; confidence?: string }) {
+    return request(`/case-intelligence/${reportId}/entities`, {
+      method: "POST",
+      body: JSON.stringify(fields),
+    });
   },
 
-  async createCaseHypothesis(reportId: string, fields: { title: string; description?: string; confidence?: number }) {
+  async createCaseTimelineEvent(reportId: string, fields: { occurredAt: number; title: string; description?: string; source?: string; confidence?: string; factType?: string }) {
+    return request(`/case-intelligence/${reportId}/timeline`, {
+      method: "POST",
+      body: JSON.stringify(fields),
+    });
+  },
+
+  async createCaseHypothesis(reportId: string, fields: { statement: string; supportingEvidence?: string; contraryEvidence?: string; missingInformation?: string; confidence?: string; status?: string }) {
     return request(`/case-intelligence/${reportId}/hypotheses`, {
       method: "POST",
       body: JSON.stringify(fields),
