@@ -5,7 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import MapView, { UrlTile, Marker, PROVIDER_DEFAULT } from "react-native-maps";
 import { useTheme } from "../contexts/ThemeContext";
 import { Theme } from "../theme";
-import { api, Report, ApiError } from "../api/client";
+import { api, Report, SourceMonitor, ApiError } from "../api/client";
 import { STRATEGIC_SITES, STRATEGIC_KIND_META } from "../constants/strategicSites";
 
 // Região inicial: Bahia (mesma área usada nos mockups aprovados). O usuário
@@ -30,6 +30,7 @@ export default function TerritorialMapScreen() {
   const [error, setError] = useState<string | null>(null);
   const [reports, setReports] = useState<Report[]>([]);
   const [flights, setFlights] = useState<any[]>([]);
+  const [monitors, setMonitors] = useState<SourceMonitor[]>([]);
 
   const load = useCallback(async () => {
     setError(null);
@@ -49,18 +50,35 @@ export default function TerritorialMapScreen() {
     load();
   }, [load]);
 
+  const [flightsError, setFlightsError] = useState<string | null>(null);
+
   const loadFlights = useCallback(async () => {
+    setFlightsError(null);
     try {
       const res = await api.getFlights({ lamin: -20, lomin: -48, lamax: -6.5, lomax: -35 });
       setFlights(res.flights || []);
-    } catch {
+    } catch (err) {
       setFlights([]);
+      setFlightsError(err instanceof ApiError ? err.message : "Não foi possível carregar o tráfego aéreo.");
     }
   }, []);
 
   useEffect(() => {
     if (layer === "flights") loadFlights();
   }, [layer, loadFlights]);
+
+  const loadMonitors = useCallback(async () => {
+    try {
+      const res = await api.listSourceMonitors();
+      setMonitors(res.monitors || []);
+    } catch {
+      setMonitors([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (layer === "sources") loadMonitors();
+  }, [layer, loadMonitors]);
 
   return (
     <View style={styles.container}>
@@ -180,6 +198,7 @@ export default function TerritorialMapScreen() {
               <Text style={styles.sheetTitle}>Cobertura de voo</Text>
             </View>
             <Text style={styles.sourceCaption}>fonte: OpenSky Network, via /public-data/flights</Text>
+            {flightsError && <Text style={styles.errorText}>{flightsError}</Text>}
             {flights.length === 0 ? (
               <Text style={styles.emptyText}>Nenhuma aeronave na área no momento.</Text>
             ) : (
@@ -187,6 +206,27 @@ export default function TerritorialMapScreen() {
                 <View key={f.icao24} style={styles.flightRow}>
                   <Text style={styles.flightCallsign}>{f.callsign || f.icao24}</Text>
                   <Text style={styles.flightMeta}>{f.origin_country}</Text>
+                </View>
+              ))
+            )}
+          </>
+        ) : layer === "sources" ? (
+          <>
+            <View style={styles.sheetHeader}>
+              <Text style={styles.sheetTitle}>Fontes monitoradas</Text>
+              <Text style={styles.sheetCount}>{monitors.length} fontes</Text>
+            </View>
+            <Text style={styles.sourceCaption}>fontes não têm coordenada própria — exibidas só na lista</Text>
+            {monitors.length === 0 ? (
+              <Text style={styles.emptyText}>Nenhuma fonte monitorada ainda.</Text>
+            ) : (
+              monitors.slice(0, 8).map((m) => (
+                <View key={m.id} style={styles.caseRow}>
+                  <View style={[styles.dot, { backgroundColor: color.primary }]} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.caseRowTitle} numberOfLines={1}>{m.query}</Text>
+                    <Text style={styles.flightMeta}>{m.kind}{m.tribunal ? ` · ${m.tribunal}` : ""}</Text>
+                  </View>
                 </View>
               ))
             )}

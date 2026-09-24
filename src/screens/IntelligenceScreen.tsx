@@ -1,89 +1,135 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, ActivityIndicator } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../contexts/ThemeContext";
 import { Theme } from "../theme";
-import { api, SourceMonitor, ApiError } from "../api/client";
+import { api, ApiError } from "../api/client";
+
+type Kind = "company" | "sanctions" | "court";
 
 export default function IntelligenceScreen() {
   const theme = useTheme();
   const { color } = theme;
   const styles = useMemo(() => buildStyles(theme), [theme]);
 
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [monitors, setMonitors] = useState<SourceMonitor[]>([]);
+  const [kind, setKind] = useState<Kind>("company");
   const [query, setQuery] = useState("");
+  const [tribunal, setTribunal] = useState("");
+  const [purpose, setPurpose] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<unknown>(null);
 
-  const load = useCallback(async () => {
+  async function handleQuery() {
     setError(null);
+    setResult(null);
+    if (purpose.trim().length < 10) {
+      setError("Descreva a finalidade legítima da consulta (mín. 10 caracteres).");
+      return;
+    }
+    if (!query.trim()) {
+      setError("Preencha o campo de busca.");
+      return;
+    }
+    setLoading(true);
     try {
-      const res = await api.listSourceMonitors();
-      setMonitors(res.monitors || []);
+      let res: unknown;
+      if (kind === "company") res = await api.queryCompany(query.trim(), purpose.trim());
+      else if (kind === "sanctions") res = await api.querySanctions(query.trim(), purpose.trim());
+      else res = await api.queryCourtCase(query.trim(), tribunal.trim(), purpose.trim());
+      setResult(res);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Sem conexão com o servidor.");
     } finally {
       setLoading(false);
     }
-  }, []);
-
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  const filtered = monitors.filter((m) =>
-    !query.trim() || String(m.query || "").toLowerCase().includes(query.toLowerCase())
-  );
+  }
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Inteligência</Text>
-        <Text style={styles.subtitle}>Consultar e capturar fontes para os casos</Text>
+        <Text style={styles.subtitle}>Consulta avulsa em fontes públicas oficiais</Text>
       </View>
 
-      <View style={styles.searchBox}>
-        <Ionicons name="search" size={16} color={color.textFaint} />
+      <ScrollView contentContainerStyle={styles.list}>
+        <View style={styles.kindRow}>
+          <KindChip theme={theme} active={kind === "company"} label="CNPJ" onPress={() => { setKind("company"); setResult(null); setError(null); }} />
+          <KindChip theme={theme} active={kind === "sanctions"} label="Sanções" onPress={() => { setKind("sanctions"); setResult(null); setError(null); }} />
+          <KindChip theme={theme} active={kind === "court"} label="Processo" onPress={() => { setKind("court"); setResult(null); setError(null); }} />
+        </View>
+
         <TextInput
+          style={styles.input}
+          placeholder={
+            kind === "company" ? "CNPJ (14 dígitos)" : kind === "sanctions" ? "Nome ou razão social" : "Número CNJ (20 dígitos)"
+          }
+          placeholderTextColor={color.textFaint}
           value={query}
           onChangeText={setQuery}
-          placeholder="Consultar fonte, nome ou local"
-          placeholderTextColor={color.textFaint}
-          style={styles.searchInput}
+          autoCapitalize="none"
+          keyboardType={kind === "company" || kind === "court" ? "number-pad" : "default"}
         />
-      </View>
 
-      {loading ? (
-        <ActivityIndicator style={{ marginTop: 40 }} color={color.primary} />
-      ) : (
-        <ScrollView contentContainerStyle={styles.list}>
-          {error && <Text style={styles.errorText}>{error}</Text>}
-          {filtered.length === 0 ? (
-            <Text style={styles.emptyText}>Nenhuma fonte monitorada ainda.</Text>
-          ) : (
-            filtered.map((m) => (
-              <View key={m.id} style={styles.card}>
-                <View style={{ flexDirection: "row", gap: 12 }}>
-                  <View style={styles.icon}>
-                    <Ionicons name="people-outline" size={17} color={color.primary} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.name}>{m.query}</Text>
-                    <Text style={styles.meta}>{m.kind || "Monitoramento"} {m.tribunal ? `· ${m.tribunal}` : ""}</Text>
-                  </View>
-                </View>
-                {m.purpose ? <Text style={styles.snippet}>{m.purpose}</Text> : null}
-              </View>
-            ))
+        {kind === "court" && (
+          <TextInput
+            style={styles.input}
+            placeholder="Sigla do tribunal (ex.: TJBA)"
+            placeholderTextColor={color.textFaint}
+            value={tribunal}
+            onChangeText={setTribunal}
+            autoCapitalize="characters"
+          />
+        )}
+
+        <TextInput
+          style={[styles.input, { minHeight: 70, textAlignVertical: "top" }]}
+          placeholder="Finalidade legítima da consulta (mín. 10 caracteres) — fica registrada em auditoria"
+          placeholderTextColor={color.textFaint}
+          value={purpose}
+          onChangeText={setPurpose}
+          multiline
+        />
+
+        {error && <Text style={styles.errorText}>{error}</Text>}
+
+        <Pressable style={[styles.queryButton, loading && { opacity: 0.6 }]} disabled={loading} onPress={handleQuery}>
+          {loading ? <ActivityIndicator color="#fff" /> : (
+            <>
+              <Ionicons name="search" size={15} color="#fff" />
+              <Text style={styles.queryButtonText}>Consultar</Text>
+            </>
           )}
+        </Pressable>
 
-          <Pressable style={styles.captureButton}>
-            <Ionicons name="add" size={15} color={color.primary} />
-            <Text style={styles.captureButtonText}>Capturar e preservar fonte</Text>
-          </Pressable>
-        </ScrollView>
-      )}
+        {result != null && (
+          <View style={styles.resultCard}>
+            <Text style={styles.resultLabel}>Resultado</Text>
+            <Text style={styles.resultBody}>{JSON.stringify(result, null, 2)}</Text>
+          </View>
+        )}
+      </ScrollView>
     </View>
+  );
+}
+
+function KindChip({ theme, active, label, onPress }: { theme: Theme; active: boolean; label: string; onPress: () => void }) {
+  const { color } = theme;
+  return (
+    <Pressable
+      onPress={onPress}
+      style={{
+        flex: 1,
+        paddingVertical: 10,
+        borderRadius: 10,
+        alignItems: "center",
+        backgroundColor: active ? color.primary : color.surface,
+        borderWidth: 1,
+        borderColor: active ? color.primary : color.border,
+      }}
+    >
+      <Text style={{ fontSize: 12.5, fontWeight: "700", color: active ? "#fff" : color.textMuted }}>{label}</Text>
+    </Pressable>
   );
 }
 
@@ -94,38 +140,14 @@ function buildStyles(theme: Theme) {
     header: { paddingHorizontal: space.xl, paddingTop: space.md },
     title: { fontSize: 23, fontWeight: "700", color: color.text, letterSpacing: -0.4 },
     subtitle: { fontSize: 12.5, color: color.textMuted, marginTop: 4 },
-    searchBox: {
-      marginHorizontal: space.xl,
-      marginTop: space.lg,
-      backgroundColor: color.surface,
-      borderRadius: radius.xl,
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 10,
-      paddingHorizontal: 14,
-      paddingVertical: 11,
-      ...theme.shadow.card,
-    },
-    searchInput: { flex: 1, fontSize: 13.5, color: color.text },
-    list: { padding: space.xl, gap: space.md },
-    emptyText: { textAlign: "center", color: color.textFaint, fontSize: 13, paddingVertical: 30 },
-    errorText: { color: color.danger, fontSize: 12.5, marginBottom: 8 },
-    card: { backgroundColor: color.surface, borderRadius: radius.xl, padding: 14, ...theme.shadow.card },
-    icon: { width: 38, height: 38, borderRadius: 11, backgroundColor: color.infoTint, alignItems: "center", justifyContent: "center" },
-    name: { fontSize: 14, fontWeight: "600", color: color.text },
-    meta: { fontSize: 12, color: color.textMuted, marginTop: 2 },
-    snippet: { fontSize: 12, color: "#475569", marginTop: 10, backgroundColor: color.bg, borderRadius: 9, padding: 10, lineHeight: 17 },
-    captureButton: {
-      borderWidth: 1.5,
-      borderColor: color.border,
-      borderStyle: "dashed",
-      borderRadius: radius.xl,
-      padding: 18,
-      alignItems: "center",
-      justifyContent: "center",
-      flexDirection: "row",
-      gap: 8,
-    },
-    captureButtonText: { fontSize: 13.5, fontWeight: "600", color: color.primary },
+    list: { padding: space.xl, gap: 10 },
+    kindRow: { flexDirection: "row", gap: 8, marginTop: space.lg },
+    input: { backgroundColor: color.surface, borderRadius: radius.md, borderWidth: 1, borderColor: color.border, padding: 13, fontSize: 13.5, color: color.text },
+    errorText: { color: color.danger, fontSize: 12.5 },
+    queryButton: { backgroundColor: color.primary, borderRadius: radius.lg, padding: 14, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
+    queryButtonText: { color: "#fff", fontWeight: "700", fontSize: 14 },
+    resultCard: { backgroundColor: color.surface, borderRadius: radius.xl, padding: 14, ...theme.shadow.card },
+    resultLabel: { fontSize: 11.5, fontWeight: "700", color: color.textFaint, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 8 },
+    resultBody: { fontSize: 12, color: "#344054", fontFamily: "monospace", lineHeight: 17 },
   });
 }

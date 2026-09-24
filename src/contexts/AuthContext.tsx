@@ -21,6 +21,10 @@ interface AuthContextValue {
   submitMfaChallenge: (params: { otp?: string; recoveryCode?: string }) => Promise<void>;
   cancelMfaChallenge: () => void;
   logout: () => Promise<void>;
+  /** Rebusca /auth/me — usado depois de mudar senha ou ativar/desativar MFA. */
+  refreshUser: () => Promise<void>;
+  /** Salva um token novo (ex.: devolvido por mfaConfirm/mfaDisable/changePassword) e rebusca o usuário. */
+  applyNewToken: (token: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -103,6 +107,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setMfaChallenge(null);
   }
 
+  async function refreshUser() {
+    const { user: me } = await api.me();
+    setUser(me);
+  }
+
+  async function applyNewToken(token: string) {
+    await saveToken(token);
+    await refreshUser();
+  }
+
   async function logout() {
     await clearToken();
     setSessionExpired(false);
@@ -123,6 +137,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         submitMfaChallenge,
         cancelMfaChallenge,
         logout,
+        refreshUser,
+        applyNewToken,
       }}
     >
       {children}

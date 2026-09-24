@@ -19,7 +19,7 @@ interface Stats {
   pins: number;
   sources: number;
   pending: number;
-  monitors: number;
+  secret: number;
 }
 
 export default function DashboardScreen() {
@@ -33,7 +33,7 @@ export default function DashboardScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reports, setReports] = useState<Report[]>([]);
-  const [stats, setStats] = useState<Stats>({ pins: 0, sources: 0, pending: 0, monitors: 0 });
+  const [stats, setStats] = useState<Stats>({ pins: 0, sources: 0, pending: 0, secret: 0 });
 
   const load = useCallback(async () => {
     setError(null);
@@ -47,9 +47,11 @@ export default function DashboardScreen() {
       setReports(allReports);
       setStats({
         pins: allReports.length,
+        // "active"/"alertCount" não existem no schema real de SourceMonitor
+        // (confirmado em routes/publicData.js) — trocado por métricas reais.
         sources: (monitorsRes as any).monitors?.length ?? 0,
         pending: (pendingRes as any).requests?.filter((r: any) => r.status === "pending" || !r.status).length ?? 0,
-        monitors: (monitorsRes as any).monitors?.filter((m: any) => m.active !== false).length ?? 0,
+        secret: allReports.filter((r) => r.classification === "SECRETO").length,
       });
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Sem conexão com o servidor.");
@@ -119,7 +121,7 @@ export default function DashboardScreen() {
           <StatCard theme={theme} icon="location-outline" value={stats.pins} label="Casos georreferenciados" tint={color.infoTint} iconColor={color.primary} />
           <StatCard theme={theme} icon="radio-outline" value={stats.sources} label="Fontes monitoradas" tint={color.warningTint} iconColor={color.warning} />
           <StatCard theme={theme} icon="time-outline" value={stats.pending} label="Pedidos pendentes" tint={color.dangerTint} iconColor={color.danger} />
-          <StatCard theme={theme} icon="checkmark-circle-outline" value={stats.monitors} label="Monitoramentos ativos" tint={color.successTint} iconColor={color.success} />
+          <StatCard theme={theme} icon="shield-outline" value={stats.secret} label="Casos SECRETO" tint={color.successTint} iconColor={color.success} />
         </View>
 
         <Pressable style={styles.primaryButton} onPress={() => navigation.navigate("ReportDetail", { mode: "create" })}>

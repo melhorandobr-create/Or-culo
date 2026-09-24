@@ -339,7 +339,18 @@ export const api = {
   },
 
   async createReportTask(id: string, fields: { title: string; notes?: string; dueAt?: number; assignedUserId?: string }) {
-    return request(`/reports/${id}/tasks`, { method: "POST", body: JSON.stringify(fields) });
+    return request<{ task: any }>(`/reports/${id}/tasks`, { method: "POST", body: JSON.stringify(fields) });
+  },
+
+  async updateReportTaskStatus(id: string, taskId: string, status: "PENDENTE" | "CONCLUIDA") {
+    return request<{ task: any }>(`/reports/${id}/tasks/${taskId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    });
+  },
+
+  async deleteReportTask(id: string, taskId: string) {
+    return request<void>(`/reports/${id}/tasks/${taskId}`, { method: "DELETE" });
   },
 
   async getReportIntegrity(id: string) {
@@ -449,6 +460,24 @@ export const api = {
       lomax: String(bbox.lomax),
     });
     return request<{ flights: unknown[] }>(`/public-data/flights?${q.toString()}`);
+  },
+
+  // Consultas avulsas confirmadas em routes/publicData.js — todas exigem
+  // "purpose" (finalidade, mín. 10 caracteres) e ficam auditadas no servidor.
+  async queryCompany(cnpj: string, purpose: string) {
+    const digits = cnpj.replace(/\D/g, "");
+    const q = new URLSearchParams({ purpose });
+    return request<Record<string, unknown>>(`/public-data/company/${digits}?${q.toString()}`);
+  },
+
+  async querySanctions(name: string, purpose: string) {
+    const q = new URLSearchParams({ query: name, purpose });
+    return request<Record<string, unknown>>(`/public-data/sanctions?${q.toString()}`);
+  },
+
+  async queryCourtCase(processNumber: string, tribunal: string, purpose: string) {
+    const q = new URLSearchParams({ number: processNumber, tribunal, purpose });
+    return request<Record<string, unknown>>(`/public-data/court-case?${q.toString()}`);
   },
 
   // ---- /security ----

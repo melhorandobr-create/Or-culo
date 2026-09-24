@@ -15,12 +15,17 @@ export default function AccessRequestsScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [incoming, setIncoming] = useState<AccessRequest[]>([]);
+  const [outgoing, setOutgoing] = useState<AccessRequest[]>([]);
 
   const load = useCallback(async () => {
     setError(null);
     try {
-      const res = await api.listIncomingAccessRequests();
-      setIncoming(res.requests || []);
+      const [incomingRes, outgoingRes] = await Promise.all([
+        api.listIncomingAccessRequests(),
+        api.listOutgoingAccessRequests().catch(() => ({ requests: [] })),
+      ]);
+      setIncoming(incomingRes.requests || []);
+      setOutgoing(outgoingRes.requests || []);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Sem conexão com o servidor.");
     } finally {
@@ -120,13 +125,37 @@ export default function AccessRequestsScreen() {
           </View>
 
           <Text style={styles.sectionLabel}>Negados</Text>
-          <View style={styles.card}>
+          <View style={[styles.card, { marginBottom: theme.space.xxl }]}>
             {denied.length === 0 ? (
               <Text style={styles.emptyText}>Nenhum pedido negado.</Text>
             ) : (
               denied.map((r, i) => (
                 <View key={r.id} style={[styles.listRow, i < denied.length - 1 && styles.listRowBorder, { opacity: 0.65 }]}>
                   <Text style={styles.listRowTitle}>Caso #{String(r.reportId).slice(0, 6).toUpperCase()}</Text>
+                </View>
+              ))
+            )}
+          </View>
+
+          <Text style={styles.sectionLabel}>Meus pedidos enviados</Text>
+          <View style={styles.card}>
+            {outgoing.length === 0 ? (
+              <Text style={styles.emptyText}>Você não solicitou acesso a nenhum caso ainda. Peça pela tela do próprio caso, quando ele estiver bloqueado.</Text>
+            ) : (
+              outgoing.map((r, i) => (
+                <View key={r.id} style={[styles.listRow, i < outgoing.length - 1 && styles.listRowBorder]}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.listRowTitle}>Caso #{String(r.reportId).slice(0, 6).toUpperCase()}</Text>
+                    {r.justification ? <Text style={styles.metaValue} numberOfLines={1}>{r.justification}</Text> : null}
+                  </View>
+                  <Text
+                    style={[
+                      styles.revokeText,
+                      { color: r.status === "denied" ? color.danger : r.status === "approved" || r.status === "granted" ? color.success : color.textMuted },
+                    ]}
+                  >
+                    {r.status === "denied" ? "Negado" : r.status === "approved" || r.status === "granted" ? "Autorizado" : "Pendente"}
+                  </Text>
                 </View>
               ))
             )}
