@@ -6,6 +6,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../contexts/AuthContext";
 import { useTheme } from "../contexts/ThemeContext";
 import LoginScreen from "../screens/LoginScreen";
+import DashboardScreen from "../screens/DashboardScreen";
 import PlaceholderScreen from "../screens/PlaceholderScreen";
 
 const Stack = createNativeStackNavigator();
@@ -37,7 +38,7 @@ function TabsScreen() {
         },
       })}
     >
-      <Tab.Screen name="Dashboard" component={PlaceholderScreen} />
+      <Tab.Screen name="Dashboard" component={DashboardScreen} />
       <Tab.Screen name="Intelligence" component={PlaceholderScreen} />
       <Tab.Screen name="TerritorialMap" component={PlaceholderScreen} options={{ title: "Mapa" }} />
       <Tab.Screen name="SecurityCenter" component={PlaceholderScreen} options={{ title: "Segurança" }} />

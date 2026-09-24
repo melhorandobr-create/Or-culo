@@ -1,14 +1,20 @@
-// Paleta extraída do bundle compilado original (cores hex encontradas em
-// index.android.bundle + backgroundColor/adaptiveIcon do app.config).
+// Paleta e tokens aprovados nos mockups (identidade "plataforma de segurança
+// moderna" — cards brancos com elevação suave, fundo neutro claro).
 export const color = {
   primary: "#1B4B8F",
-  bg: "#F2F5F9",
+  bg: "#F7F8FA",
   surface: "#FFFFFF",
-  border: "#D6DEE8",
-  text: "#1A2433",
-  textMuted: "#5B6B82",
-  textFaint: "#8B98AC",
+  border: "#E4E7EC",
+  text: "#101828",
+  textMuted: "#667085",
+  textFaint: "#98A2B3",
   danger: "#C0392B",
+  dangerTint: "#FDF0F0",
+  warning: "#C05621",
+  warningTint: "#FDF2E9",
+  success: "#12813D",
+  successTint: "#ECF9F0",
+  infoTint: "#EAF1FB",
 };
 
 export const font = {
@@ -16,18 +22,29 @@ export const font = {
   body: "System",
   bodyMedium: "System",
   bodyBold: "System",
+  mono: "System",
 };
 
-export const radius = { sm: 6, md: 12, lg: 18 };
+export const radius = { sm: 8, md: 12, lg: 14, xl: 16, pill: 20 };
 
 export const space = {
   xs: 4,
   sm: 8,
   md: 12,
   lg: 16,
-  xl: 24,
-  xxl: 32,
-  xxxl: 40,
+  xl: 20,
+  xxl: 24,
+  xxxl: 32,
+};
+
+export const shadow = {
+  card: {
+    shadowColor: "#101828",
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 2,
+  },
 };
 
 export interface Theme {
@@ -35,6 +52,7 @@ export interface Theme {
   font: typeof font;
   radius: typeof radius;
   space: typeof space;
+  shadow: typeof shadow;
 }
 
-export const theme: Theme = { color, font, radius, space };
+export const theme: Theme = { color, font, radius, space, shadow };
