@@ -65,24 +65,58 @@ export interface LoginResult {
   user: PublicUser;
 }
 
-// classification: 'RESERVADO' | 'SECRETO' (confirmado em routes/caseIntelligence.js
-// canView: `report.classification === 'SECRETO' && !user.secretClearance`).
+// Campos confirmados direto em routes/reports.js (2026-09-24):
+// - classification: 'SIGILOSO' (default) | 'RESERVADO' | 'SECRETO' — só
+//   'SECRETO' é tratado como especial em canView.
+// - status: 'RASCUNHO' (default) | 'EM_REVISAO' | 'FINALIZADO' | 'ARQUIVADO'
+//   (únicos aceitos por POST /reports/:id/status).
+// - coordenadas do mapa são operationLatitude/operationLongitude, NUNCA
+//   lat/lng — o GET /reports (lista) só expõe esses nomes.
 export interface Report {
   id: string;
   ownerId: string;
+  ownerDisplayName?: string;
   displayName?: string;
   title?: string;
   description?: string;
+  body?: string;
+  summary?: string;
+  recordType?: string;
   status?: string;
   classification?: string;
   riskLevel?: string;
   operationPhase?: string;
   authorizationStatus?: string;
-  lat?: number;
-  lng?: number;
+  operationAddress?: string;
+  operationLatitude?: number;
+  operationLongitude?: number;
+  stagingLatitude?: number;
+  stagingLongitude?: number;
+  perimeterKm?: number;
+  scheduledAt?: number;
+  confirmedFacts?: string;
+  hypotheses?: string;
+  informationGaps?: string;
+  redactedIndices?: number[];
+  canView?: boolean;
+  canRequestAccess?: boolean;
   createdAt?: number;
   updatedAt?: number;
   [key: string]: unknown;
+}
+
+// Confirmado em routes/reports.js: evidencePublic() e POST /reports/:id/evidence.
+export interface Evidence {
+  id: string;
+  kind: "photo" | "video" | "link" | "document";
+  url?: string | null;
+  mimeType?: string | null;
+  caption?: string;
+  originalName?: string | null;
+  size?: number;
+  sha256?: string | null;
+  captureMetadata?: { title?: string; author?: string; capturedAt?: number; sourceUrl?: string } | null;
+  createdAt?: number;
 }
 
 export interface CaseIntelligence {
@@ -233,8 +267,9 @@ export const api = {
     });
   },
 
+  // Confirmado: a evidência vem como campo irmão de "report", não dentro dele.
   async getReport(id: string) {
-    return request<{ report: Report }>(`/reports/${id}`);
+    return request<{ report: Report; evidence: Evidence[]; isOwner: boolean }>(`/reports/${id}`);
   },
 
   async updateReport(id: string, patch: Partial<Report>) {
@@ -244,8 +279,52 @@ export const api = {
     });
   },
 
+  async setReportStatus(id: string, status: "RASCUNHO" | "EM_REVISAO" | "FINALIZADO" | "ARQUIVADO") {
+    return request<{ report: Report }>(`/reports/${id}/status`, {
+      method: "POST",
+      body: JSON.stringify({ status }),
+    });
+  },
+
   async deleteReport(id: string) {
     return request<void>(`/reports/${id}`, { method: "DELETE" });
+  },
+
+  // Upload multipart real — confirmado em routes/reports.js (multer, 60MB,
+  // kind: 'photo'|'video'|'link'). Para 'link' não há arquivo, só { url }.
+  async uploadEvidence(
+    reportId: string,
+    params:
+      | { kind: "photo" | "video"; file: { uri: string; name: string; type: string }; caption?: string }
+      | { kind: "link"; url: string; caption?: string }
+  ): Promise<{ evidence: Evidence }> {
+    const token = await getToken();
+    const form = new FormData();
+    form.append("kind", params.kind);
+    if (params.caption) form.append("caption", params.caption);
+    if (params.kind === "link") {
+      form.append("url", params.url);
+    } else {
+      form.append("file", params.file as any);
+    }
+    const res = await fetch(`${BASE_URL}/reports/${reportId}/evidence`, {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      body: form,
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new ApiError(body?.error || "Não foi possível enviar o anexo.", res.status);
+    return body as { evidence: Evidence };
+  },
+
+  async deleteEvidence(reportId: string, evidenceId: string) {
+    return request<void>(`/reports/${reportId}/evidence/${evidenceId}`, { method: "DELETE" });
+  },
+
+  // Retorna a URL autenticada do binário — o app precisa mandar o header
+  // Authorization junto (RN Image aceita via `source={{uri, headers}}`).
+  evidenceFileUrl(reportId: string, evidenceId: string) {
+    return `${BASE_URL}/reports/${reportId}/evidence/${evidenceId}`;
   },
 
   async listReportTasks(id: string) {

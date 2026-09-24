@@ -7,12 +7,14 @@ import {
   Pressable,
   ActivityIndicator,
   Alert,
+  Image,
 } from "react-native";
+import * as ImagePicker from "expo-image-picker";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../contexts/ThemeContext";
 import { Theme } from "../theme";
-import { api, Report, ApiError } from "../api/client";
+import { api, getToken, Report, Evidence, ApiError } from "../api/client";
 
 type Tab = "timeline" | "evidence" | "hypotheses";
 
@@ -29,6 +31,9 @@ export default function ReportDetailScreen() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [report, setReport] = useState<Report | null>(null);
+  const [isOwner, setIsOwner] = useState(false);
+  const [evidence, setEvidence] = useState<Evidence[]>([]);
+  const [uploading, setUploading] = useState(false);
   const [timeline, setTimeline] = useState<any[]>([]);
   const [hypotheses, setHypotheses] = useState<any[]>([]);
   const [tab, setTab] = useState<Tab>("timeline");
@@ -46,6 +51,8 @@ export default function ReportDetailScreen() {
         api.getCaseIntelligence(reportId),
       ]);
       setReport(reportRes.report);
+      setEvidence(reportRes.evidence || []);
+      setIsOwner(Boolean(reportRes.isOwner));
       setTimeline(intelRes.timeline || []);
       setHypotheses(intelRes.hypotheses || []);
     } catch (err) {
@@ -92,7 +99,34 @@ export default function ReportDetailScreen() {
     ]);
   }
 
-  const evidence: any[] = (report as any)?.evidence || [];
+  async function handleAttach(kind: "photo" | "video") {
+    if (!reportId) return;
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert("Permissão necessária", "Autorize o acesso à galeria para anexar evidências.");
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: kind === "video" ? ImagePicker.MediaTypeOptions.Videos : ImagePicker.MediaTypeOptions.Images,
+      quality: 0.8,
+    });
+    if (result.canceled || !result.assets?.[0]) return;
+    const asset = result.assets[0];
+    setUploading(true);
+    setError(null);
+    try {
+      const fileName = asset.fileName || `${kind === "video" ? "video" : "foto"}-${Date.now()}.${kind === "video" ? "mp4" : "jpg"}`;
+      const res = await api.uploadEvidence(reportId, {
+        kind,
+        file: { uri: asset.uri, name: fileName, type: asset.mimeType || (kind === "video" ? "video/mp4" : "image/jpeg") },
+      });
+      setEvidence((prev) => [res.evidence, ...prev]);
+    } catch (err) {
+      Alert.alert("Erro ao anexar", err instanceof ApiError ? err.message : "Não foi possível enviar o arquivo.");
+    } finally {
+      setUploading(false);
+    }
+  }
 
   if (isCreate) {
     return (
@@ -186,20 +220,42 @@ export default function ReportDetailScreen() {
 
         {tab === "evidence" && (
           <View style={{ marginTop: theme.space.xl, gap: theme.space.md }}>
+            {isOwner && (
+              <View style={{ flexDirection: "row", gap: 10 }}>
+                <Pressable style={[styles.secondaryButton, { flex: 1 }]} disabled={uploading} onPress={() => handleAttach("photo")}>
+                  <Ionicons name="image-outline" size={15} color={color.text} />
+                  <Text style={styles.secondaryButtonText}>Anexar foto</Text>
+                </Pressable>
+                <Pressable style={[styles.secondaryButton, { flex: 1 }]} disabled={uploading} onPress={() => handleAttach("video")}>
+                  <Ionicons name="videocam-outline" size={15} color={color.text} />
+                  <Text style={styles.secondaryButtonText}>Anexar vídeo</Text>
+                </Pressable>
+              </View>
+            )}
+            {uploading && <ActivityIndicator color={color.primary} />}
             {evidence.length === 0 ? (
               <Text style={styles.emptyText}>Nenhuma evidência anexada ainda.</Text>
             ) : (
-              evidence.map((ev, i) => (
-                <View key={ev.id || i} style={styles.card}>
+              evidence.map((ev) => (
+                <View key={ev.id} style={styles.card}>
                   <View style={{ flexDirection: "row", gap: 12 }}>
-                    <View style={styles.evidenceIcon}>
-                      <Ionicons name="document-outline" size={16} color={color.textMuted} />
-                    </View>
+                    {ev.kind === "photo" ? (
+                      <AuthenticatedThumbnail reportId={reportId!} evidenceId={ev.id} />
+                    ) : (
+                      <View style={styles.evidenceIcon}>
+                        <Ionicons
+                          name={ev.kind === "video" ? "videocam-outline" : ev.kind === "link" ? "link-outline" : "document-outline"}
+                          size={16}
+                          color={color.textMuted}
+                        />
+                      </View>
+                    )}
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.evidenceFileName}>{ev.fileName || ev.caption || "Anexo"}</Text>
+                      <Text style={styles.evidenceFileName}>{ev.originalName || ev.caption || "Anexo"}</Text>
                       {ev.caption ? <Text style={styles.evidenceCaption}>{ev.caption}</Text> : null}
                       <Text style={styles.evidenceMeta}>
-                        {ev.sha256 ? `${String(ev.sha256).slice(0, 8)}…` : ""} {ev.uploadedBy ? `· ${ev.uploadedBy}` : ""}
+                        {ev.sha256 ? `${String(ev.sha256).slice(0, 8)}…` : ""}
+                        {ev.size ? ` · ${Math.round(ev.size / 1024)} KB` : ""}
                       </Text>
                     </View>
                   </View>
@@ -284,6 +340,22 @@ function Header({
         </Pressable>
       )}
     </View>
+  );
+}
+
+// Evidência é servida por um endpoint autenticado (não uma URL pública),
+// então o RN Image precisa mandar o Bearer token junto via `headers`.
+function AuthenticatedThumbnail({ reportId, evidenceId }: { reportId: string; evidenceId: string }) {
+  const [headers, setHeaders] = useState<Record<string, string> | null>(null);
+  useEffect(() => {
+    getToken().then((token) => setHeaders(token ? { Authorization: `Bearer ${token}` } : {}));
+  }, []);
+  if (!headers) return <View style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: "#EEF1F5" }} />;
+  return (
+    <Image
+      source={{ uri: api.evidenceFileUrl(reportId, evidenceId), headers }}
+      style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: "#EEF1F5" }}
+    />
   );
 }
 

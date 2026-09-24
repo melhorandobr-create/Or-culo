@@ -35,10 +35,9 @@ export default function TerritorialMapScreen() {
     setError(null);
     try {
       const res = await api.listReports();
-      // Assunção: casos georreferenciados trazem lat/lng no próprio registro
-      // (campo não confirmado 100% no schema do backend — ajustar se o nome
-      // real do campo divergir quando testado contra a API de verdade).
-      setReports((res.reports || []).filter((r: any) => r.lat != null && r.lng != null));
+      // Confirmado em routes/reports.js: coordenadas vêm como
+      // operationLatitude/operationLongitude, nunca lat/lng.
+      setReports((res.reports || []).filter((r) => r.operationLatitude != null && r.operationLongitude != null));
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Sem conexão com o servidor.");
     } finally {
@@ -80,10 +79,10 @@ export default function TerritorialMapScreen() {
         )}
 
         {layer === "cases" &&
-          reports.map((r: any) => (
+          reports.map((r) => (
             <Marker
               key={r.id}
-              coordinate={{ latitude: r.lat, longitude: r.lng }}
+              coordinate={{ latitude: r.operationLatitude as number, longitude: r.operationLongitude as number }}
               pinColor={r.classification === "SECRETO" ? color.danger : color.primary}
               title={r.title || r.displayName}
               onPress={() => navigation.navigate("ReportDetail", { reportId: r.id })}
