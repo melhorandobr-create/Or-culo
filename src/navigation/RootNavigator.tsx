@@ -7,16 +7,17 @@ import { useAuth } from "../contexts/AuthContext";
 import { useTheme } from "../contexts/ThemeContext";
 import LoginScreen from "../screens/LoginScreen";
 import DashboardScreen from "../screens/DashboardScreen";
-import PlaceholderScreen from "../screens/PlaceholderScreen";
+import IntelligenceScreen from "../screens/IntelligenceScreen";
+import TerritorialMapScreen from "../screens/TerritorialMapScreen";
+import SecurityCenterScreen from "../screens/SecurityCenterScreen";
+import ReportDetailScreen from "../screens/ReportDetailScreen";
+import ActivationCodesScreen from "../screens/ActivationCodesScreen";
+import AccessRequestsScreen from "../screens/AccessRequestsScreen";
+import PublicSourcesScreen from "../screens/PublicSourcesScreen";
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
-// Abas principais. Nomes batem com o inventário de telas extraído do bundle
-// original (DashboardScreen, ReportDetailScreen, PublicSourcesScreen,
-// TerritorialMapScreen, SecurityCenterScreen, ActivationCodesScreen,
-// AccessRequestsScreen) — cada uma trocada de Placeholder pra implementação
-// real conforme reconstruída (ver tarefas #4-#7 no plano).
 function TabsScreen() {
   const { color } = useTheme();
   return (
@@ -38,10 +39,10 @@ function TabsScreen() {
         },
       })}
     >
-      <Tab.Screen name="Dashboard" component={DashboardScreen} />
-      <Tab.Screen name="Intelligence" component={PlaceholderScreen} />
-      <Tab.Screen name="TerritorialMap" component={PlaceholderScreen} options={{ title: "Mapa" }} />
-      <Tab.Screen name="SecurityCenter" component={PlaceholderScreen} options={{ title: "Segurança" }} />
+      <Tab.Screen name="Dashboard" component={DashboardScreen} options={{ title: "Início" }} />
+      <Tab.Screen name="Intelligence" component={IntelligenceScreen} options={{ title: "Inteligência" }} />
+      <Tab.Screen name="TerritorialMap" component={TerritorialMapScreen} options={{ title: "Mapa" }} />
+      <Tab.Screen name="SecurityCenter" component={SecurityCenterScreen} options={{ title: "Segurança" }} />
     </Tab.Navigator>
   );
 }
@@ -55,10 +56,10 @@ export default function RootNavigator() {
         {isLoggedIn ? (
           <>
             <Stack.Screen name="Tabs" component={TabsScreen} />
-            <Stack.Screen name="ReportDetail" component={PlaceholderScreen} />
-            <Stack.Screen name="ActivationCodes" component={PlaceholderScreen} />
-            <Stack.Screen name="AccessRequests" component={PlaceholderScreen} />
-            <Stack.Screen name="PublicSources" component={PlaceholderScreen} />
+            <Stack.Screen name="ReportDetail" component={ReportDetailScreen} />
+            <Stack.Screen name="ActivationCodes" component={ActivationCodesScreen} />
+            <Stack.Screen name="AccessRequests" component={AccessRequestsScreen} />
+            <Stack.Screen name="PublicSources" component={PublicSourcesScreen} />
           </>
         ) : (
           <Stack.Screen name="Login" component={LoginScreen} />

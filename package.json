@@ -27,6 +27,7 @@
     "expo-updates": "~57.0.23",
     "react": "19.2.3",
     "react-native": "0.86.3",
+    "react-native-maps": "1.20.1",
     "react-native-paper": "^5.15.3",
     "react-native-safe-area-context": "^5.10.0",
     "react-native-screens": "^4.28.0"
