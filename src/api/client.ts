@@ -180,11 +180,18 @@ export interface SecurityIncident {
   [key: string]: unknown;
 }
 
-// Mensagem exata devolvida pelo backend (src/routes/auth.js) quando falta
+// Mensagem devolvida pelo backend (src/routes/auth.js) quando falta
 // OTP/recovery code válido — usada pro client saber que precisa desafiar MFA
-// em vez de mostrar "usuário ou senha inválidos".
+// em vez de mostrar "usuário ou senha inválidos". Comparação por conteúdo
+// (não igualdade exata) porque já houve divergência de um caractere entre
+// o texto real do servidor e o que foi transcrito aqui (é vs e).
 export const MFA_REQUIRED_MESSAGE =
-  "Código MFA ou código de recuperação obrigatório é válido.";
+  "Código MFA ou código de recuperação obrigatório e válido.";
+
+export function isMfaRequiredError(message: string): boolean {
+  const normalized = message.toLowerCase();
+  return normalized.includes("mfa") && normalized.includes("recupera");
+}
 
 export const api = {
   // ---- /auth ----

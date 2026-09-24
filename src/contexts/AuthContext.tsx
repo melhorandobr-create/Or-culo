@@ -5,7 +5,7 @@ import {
   getToken,
   clearToken,
   setOnSessionExpired,
-  MFA_REQUIRED_MESSAGE,
+  isMfaRequiredError,
   ApiError,
   PublicUser,
 } from "../api/client";
@@ -67,7 +67,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setIsLoggedIn(true);
       setMfaChallenge(null);
     } catch (err) {
-      if (err instanceof ApiError && err.message === MFA_REQUIRED_MESSAGE) {
+      if (err instanceof ApiError && isMfaRequiredError(err.message)) {
         setMfaChallenge({ username, password });
         return;
       }
