@@ -6,6 +6,7 @@ import MapView, { UrlTile, Marker, PROVIDER_DEFAULT } from "react-native-maps";
 import { useTheme } from "../contexts/ThemeContext";
 import { Theme } from "../theme";
 import { api, Report, ApiError } from "../api/client";
+import { STRATEGIC_SITES, STRATEGIC_KIND_META } from "../constants/strategicSites";
 
 // Região inicial: Bahia (mesma área usada nos mockups aprovados). O usuário
 // pode dar zoom out livremente pro Brasil inteiro / mundo.
@@ -16,7 +17,7 @@ const INITIAL_REGION = {
   longitudeDelta: 8,
 };
 
-type Layer = "cases" | "sources" | "flights";
+type Layer = "cases" | "sources" | "flights" | "strategic";
 
 export default function TerritorialMapScreen() {
   const theme = useTheme();
@@ -102,6 +103,23 @@ export default function TerritorialMapScreen() {
               <Ionicons name="airplane" size={18} color="#0F2A4D" />
             </Marker>
           ))}
+
+        {layer === "strategic" &&
+          STRATEGIC_SITES.map((s) => {
+            const meta = STRATEGIC_KIND_META[s.kind];
+            return (
+              <Marker
+                key={s.id}
+                coordinate={{ latitude: s.latitude, longitude: s.longitude }}
+                title={s.name}
+                description={s.description}
+              >
+                <View style={[styles.strategicPin, { backgroundColor: meta.color }]}>
+                  <Ionicons name={meta.icon as any} size={13} color="#fff" />
+                </View>
+              </Marker>
+            );
+          })}
       </MapView>
 
       {/* Header sobreposto */}
@@ -120,6 +138,7 @@ export default function TerritorialMapScreen() {
           <LayerChip theme={theme} active={layer === "cases"} label="Casos ativos" onPress={() => setLayer("cases")} />
           <LayerChip theme={theme} active={layer === "sources"} label="Fontes monitoradas" onPress={() => setLayer("sources")} />
           <LayerChip theme={theme} active={layer === "flights"} label="Voos ao vivo" icon="airplane" onPress={() => setLayer("flights")} />
+          <LayerChip theme={theme} active={layer === "strategic"} label="Infraestrutura estratégica" icon="business" onPress={() => setLayer("strategic")} />
         </View>
       </View>
 
@@ -172,6 +191,26 @@ export default function TerritorialMapScreen() {
                 </View>
               ))
             )}
+          </>
+        ) : layer === "strategic" ? (
+          <>
+            <View style={styles.sheetHeader}>
+              <Text style={styles.sheetTitle}>Infraestrutura estratégica</Text>
+              <Text style={styles.sheetCount}>{STRATEGIC_SITES.length} locais</Text>
+            </View>
+            <Text style={styles.sourceCaption}>informação pública — INB, usinas nucleares, hidrelétricas, base de lançamento</Text>
+            {STRATEGIC_SITES.map((s) => {
+              const meta = STRATEGIC_KIND_META[s.kind];
+              return (
+                <View key={s.id} style={styles.caseRow}>
+                  <View style={[styles.dot, { backgroundColor: meta.color }]} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.caseRowTitle} numberOfLines={1}>{s.name}</Text>
+                    <Text style={styles.flightMeta}>{meta.label} · {s.state}</Text>
+                  </View>
+                </View>
+              );
+            })}
           </>
         ) : (
           <Text style={styles.emptyText}>Selecione um monitoramento pra ver detalhes.</Text>
@@ -252,5 +291,14 @@ function buildStyles(theme: Theme) {
     flightRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: "#F2F4F7" },
     flightCallsign: { fontSize: 13, fontWeight: "700", color: color.text },
     flightMeta: { fontSize: 11.5, color: color.textFaint },
+    strategicPin: {
+      width: 26,
+      height: 26,
+      borderRadius: 13,
+      alignItems: "center",
+      justifyContent: "center",
+      borderWidth: 2,
+      borderColor: "#fff",
+    },
   });
 }
