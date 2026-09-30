@@ -9,6 +9,7 @@ import {
   Alert,
   Image,
   Share,
+  Platform,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import * as Print from "expo-print";
@@ -19,7 +20,7 @@ import { useTheme } from "../contexts/ThemeContext";
 import { Theme } from "../theme";
 import { api, getToken, Report, Evidence, ApiError } from "../api/client";
 
-type Tab = "timeline" | "entities" | "hypotheses" | "evidence" | "tasks";
+type Tab = "timeline" | "entities" | "hypotheses" | "evidence" | "tasks" | "ai" | "history" | "access";
 
 const STATUS_OPTIONS: Array<Report["status"]> = ["RASCUNHO", "EM_REVISAO", "FINALIZADO", "ARQUIVADO"];
 const ENTITY_TYPES = ["PESSOA", "EMPRESA", "VEICULO", "TELEFONE", "ENDERECO", "CONTA", "DOCUMENTO", "EVENTO", "OUTRO"];
@@ -45,6 +46,7 @@ export default function ReportDetailScreen() {
   const [timeline, setTimeline] = useState<any[]>([]);
   const [hypotheses, setHypotheses] = useState<any[]>([]);
   const [entities, setEntities] = useState<any[]>([]);
+  const [relationships, setRelationships] = useState<any[]>([]);
   const [command, setCommand] = useState<any>(null);
   const [tasks, setTasks] = useState<any[]>([]);
   const [tab, setTab] = useState<Tab>("timeline");
@@ -81,6 +83,7 @@ export default function ReportDetailScreen() {
       setTimeline(intelRes.timeline || []);
       setHypotheses(intelRes.hypotheses || []);
       setEntities((intelRes as any).entities || []);
+      setRelationships((intelRes as any).relationships || []);
       setCommand((intelRes as any).command || null);
       setTasks((tasksRes as any).tasks || []);
     } catch (err) {
@@ -206,6 +209,12 @@ export default function ReportDetailScreen() {
           <h2>Hipóteses</h2>
           <ul>${hypotheses.map((h) => `<li>${escapeHtml(h.statement || "")}</li>`).join("")}</ul>
         </body></html>`;
+      if (Platform.OS === "web") {
+        // expo-sharing não existe na web — abre o diálogo de impressão do
+        // navegador, onde "Salvar como PDF" é uma opção nativa do sistema.
+        await Print.printAsync({ html });
+        return;
+      }
       const { uri } = await Print.printToFileAsync({ html });
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(uri, { mimeType: "application/pdf" });
@@ -428,6 +437,9 @@ export default function ReportDetailScreen() {
           <SegButton theme={theme} active={tab === "hypotheses"} label="Hipóteses" onPress={() => setTab("hypotheses")} />
           <SegButton theme={theme} active={tab === "evidence"} label="Evidências" onPress={() => setTab("evidence")} />
           <SegButton theme={theme} active={tab === "tasks"} label="Tarefas" onPress={() => setTab("tasks")} />
+          <SegButton theme={theme} active={tab === "ai"} label="Assistente IA" onPress={() => setTab("ai")} />
+          <SegButton theme={theme} active={tab === "history"} label="Histórico" onPress={() => setTab("history")} />
+          {isOwner && <SegButton theme={theme} active={tab === "access"} label="Acesso" onPress={() => setTab("access")} />}
         </ScrollView>
 
         {tab === "timeline" && (
@@ -435,59 +447,19 @@ export default function ReportDetailScreen() {
         )}
 
         {tab === "entities" && (
-          <EntitiesTab theme={theme} reportId={reportId!} entities={entities} isOwner={isOwner} onCreated={load} />
+          <EntitiesTab theme={theme} reportId={reportId!} entities={entities} relationships={relationships} isOwner={isOwner} onCreated={load} />
         )}
 
         {tab === "evidence" && (
-          <View style={{ marginTop: theme.space.xl, gap: theme.space.md }}>
-            {isOwner && (
-              <View style={{ flexDirection: "row", gap: 10 }}>
-                <Pressable style={[styles.secondaryButton, { flex: 1 }]} disabled={uploading} onPress={() => handleAttach("photo")}>
-                  <Ionicons name="image-outline" size={15} color={color.text} />
-                  <Text style={styles.secondaryButtonText}>Anexar foto</Text>
-                </Pressable>
-                <Pressable style={[styles.secondaryButton, { flex: 1 }]} disabled={uploading} onPress={() => handleAttach("video")}>
-                  <Ionicons name="videocam-outline" size={15} color={color.text} />
-                  <Text style={styles.secondaryButtonText}>Anexar vídeo</Text>
-                </Pressable>
-              </View>
-            )}
-            {uploading && <ActivityIndicator color={color.primary} />}
-            {evidence.length === 0 ? (
-              <Text style={styles.emptyText}>Nenhuma evidência anexada ainda.</Text>
-            ) : (
-              evidence.map((ev) => (
-                <View key={ev.id} style={styles.card}>
-                  <View style={{ flexDirection: "row", gap: 12 }}>
-                    {ev.kind === "photo" ? (
-                      <AuthenticatedThumbnail reportId={reportId!} evidenceId={ev.id} />
-                    ) : (
-                      <View style={styles.evidenceIcon}>
-                        <Ionicons
-                          name={ev.kind === "video" ? "videocam-outline" : ev.kind === "link" ? "link-outline" : "document-outline"}
-                          size={16}
-                          color={color.textMuted}
-                        />
-                      </View>
-                    )}
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.evidenceFileName}>{ev.originalName || ev.caption || "Anexo"}</Text>
-                      {ev.caption ? <Text style={styles.evidenceCaption}>{ev.caption}</Text> : null}
-                      <Text style={styles.evidenceMeta}>
-                        {ev.sha256 ? `${String(ev.sha256).slice(0, 8)}…` : ""}
-                        {ev.size ? ` · ${Math.round(ev.size / 1024)} KB` : ""}
-                      </Text>
-                    </View>
-                    {isOwner && (
-                      <Pressable onPress={() => handleDeleteEvidence(ev.id)} hitSlop={8}>
-                        <Ionicons name="trash-outline" size={16} color={color.danger} />
-                      </Pressable>
-                    )}
-                  </View>
-                </View>
-              ))
-            )}
-          </View>
+          <EvidenceTab
+            theme={theme}
+            reportId={reportId!}
+            evidence={evidence}
+            isOwner={isOwner}
+            uploading={uploading}
+            onAttach={handleAttach}
+            onDelete={handleDeleteEvidence}
+          />
         )}
 
         {tab === "hypotheses" && (
@@ -497,6 +469,12 @@ export default function ReportDetailScreen() {
         {tab === "tasks" && (
           <TasksTab theme={theme} reportId={reportId!} tasks={tasks} isOwner={isOwner} onCreated={load} />
         )}
+
+        {tab === "ai" && <AiAssistantTab theme={theme} reportId={reportId!} isOwner={isOwner} />}
+
+        {tab === "history" && <HistoryTab theme={theme} reportId={reportId!} />}
+
+        {tab === "access" && isOwner && <AccessGrantTab theme={theme} reportId={reportId!} />}
 
         <View style={styles.actionsRow}>
           <Pressable style={styles.secondaryButton} onPress={handleExportPdf}>
@@ -649,16 +627,36 @@ function TimelineTab({
   );
 }
 
+// Nome do campo real de relacionamento não está confirmado no código do
+// servidor que já li — tenta os pares mais prováveis (source/target,
+// from/to) e cai pra um resumo genérico se nada bater, em vez de quebrar.
+function resolveEntityName(entities: any[], id: unknown): string {
+  const found = entities.find((e) => e.id === id);
+  return found?.name || String(id);
+}
+
+function relationshipLabel(rel: any, entities: any[]): string {
+  const fromId = rel.sourceEntityId ?? rel.fromEntityId ?? rel.sourceId ?? rel.fromId ?? rel.from;
+  const toId = rel.targetEntityId ?? rel.toEntityId ?? rel.targetId ?? rel.toId ?? rel.to;
+  const kind = rel.type || rel.relation || rel.label || rel.kind || "relacionado a";
+  if (fromId != null && toId != null) {
+    return `${resolveEntityName(entities, fromId)} — ${kind} — ${resolveEntityName(entities, toId)}`;
+  }
+  return JSON.stringify(rel);
+}
+
 function EntitiesTab({
   theme,
   reportId,
   entities,
+  relationships,
   isOwner,
   onCreated,
 }: {
   theme: Theme;
   reportId: string;
   entities: any[];
+  relationships: any[];
   isOwner: boolean;
   onCreated: () => void;
 }) {
@@ -718,6 +716,22 @@ function EntitiesTab({
               {e.notes ? <Text style={stylesShared.hypothesisDesc}>{e.notes}</Text> : null}
             </View>
           ))}
+        </View>
+      )}
+
+      {relationships.length > 0 && (
+        <View style={{ marginTop: theme.space.xl }}>
+          <Text style={{ fontSize: 11.5, fontWeight: "700", color: "#98A2B3", textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 10 }}>
+            Relacionamentos
+          </Text>
+          <View style={{ gap: theme.space.md }}>
+            {relationships.map((rel, i) => (
+              <View key={rel.id || i} style={stylesShared.card}>
+                <Text style={{ fontSize: 12.5, color: "#101828", lineHeight: 18 }}>{relationshipLabel(rel, entities)}</Text>
+                {rel.notes ? <Text style={stylesShared.hypothesisDesc}>{rel.notes}</Text> : null}
+              </View>
+            ))}
+          </View>
         </View>
       )}
     </View>
@@ -865,6 +879,354 @@ function TasksTab({
             </Pressable>
           ))}
         </View>
+      )}
+    </View>
+  );
+}
+
+function EvidenceTab({
+  theme,
+  reportId,
+  evidence,
+  isOwner,
+  uploading,
+  onAttach,
+  onDelete,
+}: {
+  theme: Theme;
+  reportId: string;
+  evidence: Evidence[];
+  isOwner: boolean;
+  uploading: boolean;
+  onAttach: (kind: "photo" | "video") => void;
+  onDelete: (evidenceId: string) => void;
+}) {
+  const { color } = theme;
+  const [checking, setChecking] = useState(false);
+  const [integrity, setIntegrity] = useState<{ checkedAt: number; valid: boolean; checks: any[] } | null>(null);
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [custody, setCustody] = useState<Record<string, any[]>>({});
+  const [custodyLoading, setCustodyLoading] = useState<string | null>(null);
+
+  async function checkIntegrity() {
+    setChecking(true);
+    try {
+      const res = await api.getReportIntegrity(reportId);
+      setIntegrity(res);
+    } catch (err) {
+      Alert.alert("Erro", err instanceof ApiError ? err.message : "Não foi possível verificar a integridade.");
+    } finally {
+      setChecking(false);
+    }
+  }
+
+  async function toggleCustody(evidenceId: string) {
+    if (expanded === evidenceId) {
+      setExpanded(null);
+      return;
+    }
+    setExpanded(evidenceId);
+    if (!custody[evidenceId]) {
+      setCustodyLoading(evidenceId);
+      try {
+        const res = await api.getEvidenceCustody(reportId, evidenceId);
+        setCustody((prev) => ({ ...prev, [evidenceId]: res.events || [] }));
+      } catch {
+        setCustody((prev) => ({ ...prev, [evidenceId]: [] }));
+      } finally {
+        setCustodyLoading(null);
+      }
+    }
+  }
+
+  function checkFor(evidenceId: string) {
+    return integrity?.checks.find((c) => c.evidenceId === evidenceId);
+  }
+
+  return (
+    <View style={{ marginTop: theme.space.xl, gap: theme.space.md }}>
+      {isOwner && (
+        <View style={{ flexDirection: "row", gap: 10 }}>
+          <Pressable style={[stylesShared.secondaryButton, { flex: 1 }]} disabled={uploading} onPress={() => onAttach("photo")}>
+            <Ionicons name="image-outline" size={15} color={color.text} />
+            <Text style={stylesShared.secondaryButtonText}>Anexar foto</Text>
+          </Pressable>
+          <Pressable style={[stylesShared.secondaryButton, { flex: 1 }]} disabled={uploading} onPress={() => onAttach("video")}>
+            <Ionicons name="videocam-outline" size={15} color={color.text} />
+            <Text style={stylesShared.secondaryButtonText}>Anexar vídeo</Text>
+          </Pressable>
+        </View>
+      )}
+      {uploading && <ActivityIndicator color={color.primary} />}
+
+      {evidence.length > 0 && (
+        <Pressable style={stylesShared.secondaryButton} disabled={checking} onPress={checkIntegrity}>
+          {checking ? (
+            <ActivityIndicator color={color.text} />
+          ) : (
+            <>
+              <Ionicons name="shield-checkmark-outline" size={15} color={color.text} />
+              <Text style={stylesShared.secondaryButtonText}>Verificar integridade</Text>
+            </>
+          )}
+        </Pressable>
+      )}
+      {integrity && (
+        <Text style={{ fontSize: 12, color: integrity.valid ? color.success : color.danger, fontWeight: "600" }}>
+          {integrity.valid ? "Todas as evidências íntegras" : "Alguma evidência falhou na verificação"} — checado em{" "}
+          {new Date(integrity.checkedAt).toLocaleString("pt-BR")}
+        </Text>
+      )}
+
+      {evidence.length === 0 ? (
+        <Text style={stylesShared.emptyText}>Nenhuma evidência anexada ainda.</Text>
+      ) : (
+        evidence.map((ev) => {
+          const check = checkFor(ev.id);
+          return (
+            <View key={ev.id} style={stylesShared.card}>
+              <View style={{ flexDirection: "row", gap: 12 }}>
+                {ev.kind === "photo" ? (
+                  <AuthenticatedThumbnail reportId={reportId} evidenceId={ev.id} />
+                ) : (
+                  <View style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: "#EAF1FB", alignItems: "center", justifyContent: "center" }}>
+                    <Ionicons
+                      name={ev.kind === "video" ? "videocam-outline" : ev.kind === "link" ? "link-outline" : "document-outline"}
+                      size={16}
+                      color="#64748B"
+                    />
+                  </View>
+                )}
+                <View style={{ flex: 1 }}>
+                  <Text style={stylesShared.hypothesisTitle}>{ev.originalName || ev.caption || "Anexo"}</Text>
+                  {ev.caption ? <Text style={{ fontSize: 11.5, color: "#64748B", marginTop: 2 }}>{ev.caption}</Text> : null}
+                  <Text style={stylesShared.evidenceMeta}>
+                    {ev.sha256 ? `${String(ev.sha256).slice(0, 8)}…` : ""}
+                    {ev.size ? ` · ${Math.round(ev.size / 1024)} KB` : ""}
+                    {check ? (check.valid ? " · íntegra ✓" : " · FALHOU ✗") : ""}
+                  </Text>
+                </View>
+                {isOwner && (
+                  <Pressable onPress={() => onDelete(ev.id)} hitSlop={8}>
+                    <Ionicons name="trash-outline" size={16} color={color.danger} />
+                  </Pressable>
+                )}
+              </View>
+              <Pressable onPress={() => toggleCustody(ev.id)} style={{ marginTop: 10 }}>
+                <Text style={{ fontSize: 11.5, color: color.primary, fontWeight: "600" }}>
+                  {expanded === ev.id ? "Ocultar cadeia de custódia" : "Ver cadeia de custódia"}
+                </Text>
+              </Pressable>
+              {expanded === ev.id && (
+                <View style={{ marginTop: 8, borderTopWidth: 1, borderTopColor: "#F2F4F7", paddingTop: 8, gap: 6 }}>
+                  {custodyLoading === ev.id ? (
+                    <ActivityIndicator color={color.primary} />
+                  ) : (custody[ev.id] || []).length === 0 ? (
+                    <Text style={stylesShared.emptyText}>Sem eventos de custódia.</Text>
+                  ) : (
+                    (custody[ev.id] || []).map((event, i) => (
+                      <Text key={event.id || i} style={{ fontSize: 11, color: "#475569" }}>
+                        {event.action} — {event.createdAt ? new Date(event.createdAt).toLocaleString("pt-BR") : ""}
+                      </Text>
+                    ))
+                  )}
+                </View>
+              )}
+            </View>
+          );
+        })
+      )}
+    </View>
+  );
+}
+
+const AI_MODES: Array<{ key: "resumo" | "parecer" | "hipoteses" | "revisao"; label: string }> = [
+  { key: "resumo", label: "Resumo" },
+  { key: "parecer", label: "Parecer" },
+  { key: "hipoteses", label: "Hipóteses" },
+  { key: "revisao", label: "Revisão" },
+];
+
+function AiAssistantTab({ theme, reportId, isOwner }: { theme: Theme; reportId: string; isOwner: boolean }) {
+  const { color } = theme;
+  const [mode, setMode] = useState<(typeof AI_MODES)[number]["key"]>("resumo");
+  const [includeSensitive, setIncludeSensitive] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<{ text: string; provider: string } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function ask() {
+    setLoading(true);
+    setError(null);
+    setResult(null);
+    try {
+      const res = await api.aiAssist(reportId, mode, includeSensitive);
+      setResult(res);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "BlindAI/Grok indisponível.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (!isOwner) {
+    return (
+      <View style={{ marginTop: theme.space.xl }}>
+        <Text style={stylesShared.emptyText}>Só o autor do caso pode usar o assistente de IA neste documento.</Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={{ marginTop: theme.space.xl, gap: 10 }}>
+      <Text style={{ fontSize: 11.5, color: "#64748B", lineHeight: 17 }}>
+        Envia um recorte deste caso ao BlindAI (Grok) para análise assistida. CPF, CNPJ e e-mails são suprimidos automaticamente,
+        a menos que você libere abaixo. O texto gerado exige revisão humana antes de qualquer uso formal.
+      </Text>
+
+      <PillRow theme={theme} options={AI_MODES.map((m) => m.label)} value={AI_MODES.find((m) => m.key === mode)?.label || ""} onChange={(label) => setMode(AI_MODES.find((m) => m.label === label)?.key || "resumo")} />
+
+      <Pressable
+        style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
+        onPress={() => setIncludeSensitive((v) => !v)}
+      >
+        <Ionicons name={includeSensitive ? "checkbox" : "square-outline"} size={18} color={includeSensitive ? color.warning : color.textFaint} />
+        <Text style={{ fontSize: 12, color: color.textMuted }}>Incluir CPF/CNPJ/e-mail sem suprimir (cuidado)</Text>
+      </Pressable>
+
+      <Pressable style={[stylesShared.primaryButton, loading && { opacity: 0.6 }]} disabled={loading} onPress={ask}>
+        {loading ? <ActivityIndicator color="#fff" /> : <Text style={stylesShared.primaryButtonText}>Perguntar ao assistente</Text>}
+      </Pressable>
+
+      {error && <Text style={{ color: color.danger, fontSize: 12.5 }}>{error}</Text>}
+
+      {result && (
+        <View style={stylesShared.card}>
+          <Text style={{ fontSize: 10.5, fontWeight: "700", color: "#98A2B3", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 }}>
+            {result.provider} · exige revisão humana
+          </Text>
+          <Text style={{ fontSize: 13, color: "#101828", lineHeight: 20 }}>{result.text}</Text>
+        </View>
+      )}
+    </View>
+  );
+}
+
+function HistoryTab({ theme, reportId }: { theme: Theme; reportId: string }) {
+  const { color } = theme;
+  const [loading, setLoading] = useState(true);
+  const [items, setItems] = useState<Array<{ id: string; kind: "revision" | "audit"; label: string; detail: string; createdAt: number }>>([]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const [revRes, auditRes] = await Promise.all([
+          api.listReportRevisions(reportId).catch(() => ({ revisions: [] })),
+          api.getReportAuditTrail(reportId).catch(() => ({ events: [] })),
+        ]);
+        const revisionItems = (revRes.revisions || []).map((r) => ({
+          id: `rev-${r.id}`,
+          kind: "revision" as const,
+          label: `Versão ${r.version}`,
+          detail: `${r.status || ""} · ${r.classification || ""}`,
+          createdAt: r.createdAt,
+        }));
+        const auditItems = (auditRes.events || []).map((e) => ({
+          id: `audit-${e.id}`,
+          kind: "audit" as const,
+          label: e.action,
+          detail: e.actorDisplayName || "",
+          createdAt: e.createdAt,
+        }));
+        setItems([...revisionItems, ...auditItems].sort((a, b) => b.createdAt - a.createdAt));
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [reportId]);
+
+  if (loading) return <ActivityIndicator color={color.primary} style={{ marginTop: theme.space.xl }} />;
+
+  return (
+    <View style={{ marginTop: theme.space.xl }}>
+      {items.length === 0 ? (
+        <Text style={stylesShared.emptyText}>Sem histórico registrado ainda.</Text>
+      ) : (
+        items.map((item, i) => (
+          <View key={item.id} style={stylesShared.timelineRow}>
+            <View style={stylesShared.timelineDotCol}>
+              <View style={[stylesShared.timelineDot, item.kind === "revision" && { backgroundColor: color.warning }]} />
+              {i < items.length - 1 && <View style={stylesShared.timelineLine} />}
+            </View>
+            <View style={{ flex: 1, paddingBottom: 20 }}>
+              <Text style={stylesShared.timelineTitle}>{item.label}</Text>
+              <Text style={stylesShared.timelineMeta}>
+                {new Date(item.createdAt).toLocaleString("pt-BR")} · {item.detail}
+              </Text>
+            </View>
+          </View>
+        ))
+      )}
+    </View>
+  );
+}
+
+function AccessGrantTab({ theme, reportId }: { theme: Theme; reportId: string }) {
+  const { color } = theme;
+  const [loading, setLoading] = useState(true);
+  const [users, setUsers] = useState<Array<{ id: string; username: string; displayName?: string }>>([]);
+  const [granting, setGranting] = useState<string | null>(null);
+  const [grantedIds, setGrantedIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    api
+      .listUsers()
+      .then((res) => setUsers(res.users || []))
+      .catch(() => setUsers([]))
+      .finally(() => setLoading(false));
+  }, []);
+
+  async function grant(userId: string) {
+    setGranting(userId);
+    try {
+      await api.grantReportAccess(reportId, userId);
+      setGrantedIds((prev) => [...prev, userId]);
+    } catch (err) {
+      Alert.alert("Erro", err instanceof ApiError ? err.message : "Não foi possível conceder acesso.");
+    } finally {
+      setGranting(null);
+    }
+  }
+
+  if (loading) return <ActivityIndicator color={color.primary} style={{ marginTop: theme.space.xl }} />;
+
+  return (
+    <View style={{ marginTop: theme.space.xl, gap: theme.space.md }}>
+      <Text style={{ fontSize: 11.5, color: "#64748B", lineHeight: 17 }}>
+        Conceda acesso direto a um operativo específico, sem esperar um pedido dele.
+      </Text>
+      {users.length === 0 ? (
+        <Text style={stylesShared.emptyText}>Nenhum outro operativo cadastrado.</Text>
+      ) : (
+        users.map((u) => (
+          <View key={u.id} style={[stylesShared.card, { flexDirection: "row", alignItems: "center", justifyContent: "space-between" }]}>
+            <View>
+              <Text style={stylesShared.hypothesisTitle}>{u.displayName || u.username}</Text>
+              <Text style={stylesShared.evidenceMeta}>@{u.username}</Text>
+            </View>
+            {grantedIds.includes(u.id) ? (
+              <Text style={{ fontSize: 12, color: color.success, fontWeight: "600" }}>Concedido ✓</Text>
+            ) : (
+              <Pressable disabled={granting === u.id} onPress={() => grant(u.id)}>
+                {granting === u.id ? (
+                  <ActivityIndicator color={color.primary} />
+                ) : (
+                  <Text style={{ fontSize: 12, color: color.primary, fontWeight: "600" }}>Conceder</Text>
+                )}
+              </Pressable>
+            )}
+          </View>
+        ))
       )}
     </View>
   );

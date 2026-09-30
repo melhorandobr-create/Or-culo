@@ -1,23 +1,29 @@
 import React, { useMemo, useState } from "react";
-import { View, Text, StyleSheet, Pressable, ActivityIndicator, Platform } from "react-native";
+import { View, Text, StyleSheet, Pressable, ActivityIndicator } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
-import MapView, { UrlTile, Marker, PROVIDER_DEFAULT } from "react-native-maps";
+import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 import { useTheme } from "../contexts/ThemeContext";
 import { Theme } from "../theme";
 import { STRATEGIC_SITES, STRATEGIC_KIND_META } from "../constants/strategicSites";
 import { useTerritorialMapData, MapLayer } from "../hooks/useTerritorialMapData";
 
-// Região inicial: Bahia (mesma área usada nos mockups aprovados). O usuário
-// pode dar zoom out livremente pro Brasil inteiro / mundo.
-const INITIAL_REGION = {
-  latitude: -12.5,
-  longitude: -41.7,
-  latitudeDelta: 8,
-  longitudeDelta: 8,
-};
+// react-native-maps não roda no navegador (é 100% nativo). Esta é a versão
+// web do mesmo mapa territorial, usando Leaflet + tiles OpenStreetMap/
+// OpenTopoMap (gratuitos, sem chave de API) em vez do Google Maps SDK.
 
-export default function TerritorialMapScreen() {
+function makeDivIcon(color: string, size = 22) {
+  return L.divIcon({
+    className: "",
+    html: `<div style="width:${size}px;height:${size}px;border-radius:${size / 2}px;background:${color};border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,0.4)"></div>`,
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
+  });
+}
+
+export default function TerritorialMapScreenWeb() {
   const theme = useTheme();
   const { color } = theme;
   const styles = useMemo(() => buildStyles(theme), [theme]);
@@ -26,67 +32,69 @@ export default function TerritorialMapScreen() {
   const [layer, setLayer] = useState<MapLayer>("cases");
   const { loading, error, reports, flights, flightsError, monitors } = useTerritorialMapData(layer);
 
+  const caseIcon = useMemo(() => makeDivIcon("#1B4B8F"), []);
+  const secretIcon = useMemo(() => makeDivIcon("#D92D20"), []);
+  const flightIcon = useMemo(
+    () =>
+      L.divIcon({
+        className: "",
+        html: `<div style="font-size:18px;transform:translate(-2px,-2px)">✈️</div>`,
+        iconSize: [22, 22],
+        iconAnchor: [11, 11],
+      }),
+    []
+  );
+
   return (
     <View style={styles.container}>
-      <MapView
-        style={StyleSheet.absoluteFill}
-        provider={PROVIDER_DEFAULT}
-        initialRegion={INITIAL_REGION}
-        mapType={Platform.OS === "android" ? "none" : "standard"}
-      >
-        {Platform.OS === "android" && (
-          <UrlTile
-            urlTemplate="https://a.tile.opentopomap.org/{z}/{x}/{y}.png"
-            maximumZ={17}
-            flipY={false}
+      <View style={StyleSheet.absoluteFill}>
+        <MapContainer center={[-12.5, -41.7]} zoom={6} style={{ width: "100%", height: "100%" }}>
+          <TileLayer
+            attribution='&copy; OpenTopoMap, OpenStreetMap contributors'
+            url="https://a.tile.opentopomap.org/{z}/{x}/{y}.png"
+            maxZoom={17}
           />
-        )}
 
-        {layer === "cases" &&
-          reports.map((r) => (
-            <Marker
-              key={r.id}
-              coordinate={{ latitude: r.operationLatitude as number, longitude: r.operationLongitude as number }}
-              pinColor={r.classification === "SECRETO" ? color.danger : color.primary}
-              title={r.title || r.displayName}
-              onPress={() => navigation.navigate("ReportDetail", { reportId: r.id })}
-            />
-          ))}
-
-        {layer === "flights" &&
-          flights.map((f: any) => (
-            <Marker
-              key={f.icao24}
-              coordinate={{ latitude: f.latitude, longitude: f.longitude }}
-              title={f.callsign}
-              description={`${f.baro_altitude ?? "?"} m · ${f.velocity ?? "?"} m/s`}
-              rotation={f.true_track ?? 0}
-              flat
-            >
-              <Ionicons name="airplane" size={18} color="#0F2A4D" />
-            </Marker>
-          ))}
-
-        {layer === "strategic" &&
-          STRATEGIC_SITES.map((s) => {
-            const meta = STRATEGIC_KIND_META[s.kind];
-            return (
+          {layer === "cases" &&
+            reports.map((r) => (
               <Marker
-                key={s.id}
-                coordinate={{ latitude: s.latitude, longitude: s.longitude }}
-                title={s.name}
-                description={s.description}
+                key={r.id}
+                position={[r.operationLatitude as number, r.operationLongitude as number]}
+                icon={r.classification === "SECRETO" ? secretIcon : caseIcon}
+                eventHandlers={{ click: () => navigation.navigate("ReportDetail", { reportId: r.id }) }}
               >
-                <View style={[styles.strategicPin, { backgroundColor: meta.color }]}>
-                  <Ionicons name={meta.icon as any} size={13} color="#fff" />
-                </View>
+                <Popup>{r.title || r.displayName}</Popup>
               </Marker>
-            );
-          })}
-      </MapView>
+            ))}
 
-      {/* Header sobreposto */}
-      <View style={styles.headerOverlay}>
+          {layer === "flights" &&
+            flights.map((f: any) => (
+              <Marker key={f.icao24} position={[f.latitude, f.longitude]} icon={flightIcon}>
+                <Popup>
+                  {f.callsign || f.icao24}
+                  <br />
+                  {f.baro_altitude ?? "?"} m · {f.velocity ?? "?"} m/s
+                </Popup>
+              </Marker>
+            ))}
+
+          {layer === "strategic" &&
+            STRATEGIC_SITES.map((s) => {
+              const meta = STRATEGIC_KIND_META[s.kind];
+              return (
+                <Marker key={s.id} position={[s.latitude, s.longitude]} icon={makeDivIcon(meta.color)}>
+                  <Popup>
+                    <strong>{s.name}</strong>
+                    <br />
+                    {s.description}
+                  </Popup>
+                </Marker>
+              );
+            })}
+        </MapContainer>
+      </View>
+
+      <View style={styles.headerOverlay} pointerEvents="box-none">
         <View style={styles.headerRow}>
           <Pressable onPress={() => navigation.goBack()} style={styles.iconButton}>
             <Ionicons name="chevron-back" size={18} color={color.text} />
@@ -106,19 +114,18 @@ export default function TerritorialMapScreen() {
       </View>
 
       {error && (
-        <View style={styles.errorBanner}>
+        <View style={styles.errorBanner} pointerEvents="none">
           <Text style={styles.errorText}>{error}</Text>
         </View>
       )}
 
       {loading && (
-        <View style={styles.loadingOverlay}>
+        <View style={styles.loadingOverlay} pointerEvents="none">
           <ActivityIndicator color={color.primary} />
         </View>
       )}
 
-      {/* Painel inferior */}
-      <View style={styles.bottomSheet}>
+      <View style={styles.bottomSheet} pointerEvents="box-none">
         <View style={styles.grabber} />
         {layer === "cases" ? (
           <>
@@ -242,20 +249,21 @@ function buildStyles(theme: Theme) {
   const { color, space, radius } = theme;
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: "#0B1E33" },
-    headerOverlay: { position: "absolute", top: 44, left: 0, right: 0, paddingHorizontal: space.xl },
+    headerOverlay: { position: "absolute", top: 20, left: 0, right: 0, paddingHorizontal: space.xl, zIndex: 500 },
     headerRow: { flexDirection: "row", alignItems: "center", gap: 10 },
     iconButton: { width: 34, height: 34, borderRadius: 11, backgroundColor: color.surface, alignItems: "center", justifyContent: "center", ...theme.shadow.card },
     searchBox: { flex: 1, backgroundColor: color.surface, borderRadius: radius.xl, flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 14, paddingVertical: 10, ...theme.shadow.card },
     searchPlaceholder: { fontSize: 13.5, color: color.textFaint },
-    layerRow: { flexDirection: "row", gap: 8, marginTop: 12 },
-    errorBanner: { position: "absolute", top: 110, left: space.xl, right: space.xl, backgroundColor: color.dangerTint, borderRadius: radius.md, padding: 10 },
+    layerRow: { flexDirection: "row", gap: 8, marginTop: 12, flexWrap: "wrap" },
+    errorBanner: { position: "absolute", top: 90, left: space.xl, right: space.xl, backgroundColor: color.dangerTint, borderRadius: radius.md, padding: 10, zIndex: 500 },
     errorText: { color: color.danger, fontSize: 12 },
-    loadingOverlay: { position: "absolute", top: 0, bottom: 0, left: 0, right: 0, alignItems: "center", justifyContent: "center" },
+    loadingOverlay: { position: "absolute", top: 0, bottom: 0, left: 0, right: 0, alignItems: "center", justifyContent: "center", zIndex: 500 },
     bottomSheet: {
       position: "absolute",
       bottom: 0,
       left: 0,
       right: 0,
+      maxWidth: 420,
       backgroundColor: color.surface,
       borderTopLeftRadius: 22,
       borderTopRightRadius: 22,
@@ -263,6 +271,8 @@ function buildStyles(theme: Theme) {
       paddingTop: 12,
       paddingBottom: 24,
       maxHeight: 320,
+      zIndex: 500,
+      overflow: "scroll" as any,
     },
     grabber: { width: 36, height: 4, backgroundColor: color.border, borderRadius: 2, alignSelf: "center", marginBottom: 14 },
     sheetHeader: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", marginBottom: 12 },
@@ -276,14 +286,5 @@ function buildStyles(theme: Theme) {
     flightRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: "#F2F4F7" },
     flightCallsign: { fontSize: 13, fontWeight: "700", color: color.text },
     flightMeta: { fontSize: 11.5, color: color.textFaint },
-    strategicPin: {
-      width: 26,
-      height: 26,
-      borderRadius: 13,
-      alignItems: "center",
-      justifyContent: "center",
-      borderWidth: 2,
-      borderColor: "#fff",
-    },
   });
 }

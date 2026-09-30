@@ -1,4 +1,5 @@
 import * as SecureStore from "expo-secure-store";
+import { Platform } from "react-native";
 
 // Backend real do ORÁCULO (vigia-svin), lido diretamente do código-fonte do
 // servidor em produção (/opt/vigia-svin) em 2026-09-24. Prefixos de rota
@@ -19,13 +20,27 @@ export function setOnSessionExpired(cb: () => void) {
   onSessionExpiredCallback = cb;
 }
 
+// expo-secure-store não existe na web (usa keychain/keystore nativo) — na
+// web guardamos no localStorage do navegador. É menos seguro que o
+// keychain nativo, mas é o mesmo modelo de qualquer app web comum.
 export async function saveToken(token: string) {
+  if (Platform.OS === "web") {
+    window.localStorage.setItem(TOKEN_KEY, token);
+    return;
+  }
   await SecureStore.setItemAsync(TOKEN_KEY, token);
 }
 export async function getToken(): Promise<string | null> {
+  if (Platform.OS === "web") {
+    return window.localStorage.getItem(TOKEN_KEY);
+  }
   return SecureStore.getItemAsync(TOKEN_KEY);
 }
 export async function clearToken() {
+  if (Platform.OS === "web") {
+    window.localStorage.removeItem(TOKEN_KEY);
+    return;
+  }
   await SecureStore.deleteItemAsync(TOKEN_KEY);
 }
 
@@ -330,6 +345,11 @@ export const api = {
     if (params.caption) form.append("caption", params.caption);
     if (params.kind === "link") {
       form.append("url", params.url);
+    } else if (Platform.OS === "web") {
+      // No navegador, FormData.append espera um Blob/File de verdade — o
+      // objeto {uri,name,type} é um polyfill exclusivo do React Native.
+      const blob = await (await fetch(params.file.uri)).blob();
+      form.append("file", blob, params.file.name);
     } else {
       form.append("file", params.file as any);
     }
@@ -372,10 +392,53 @@ export const api = {
     return request<void>(`/reports/${id}/tasks/${taskId}`, { method: "DELETE" });
   },
 
+  // Confirmado em routes/reports.js: devolve { checkedAt, valid, checks[] }
+  // — cada item de "checks" tem { evidenceId, expectedSha256, actualSha256,
+  // valid }, recalculado na hora a partir do arquivo decriptado no disco.
   async getReportIntegrity(id: string) {
-    return request<{ verified: boolean; checkedAt: number; evidenceCount: number }>(
-      `/reports/${id}/integrity`
+    return request<{
+      checkedAt: number;
+      valid: boolean;
+      checks: Array<{ evidenceId: string; expectedSha256: string | null; actualSha256: string | null; valid: boolean }>;
+    }>(`/reports/${id}/integrity`);
+  },
+
+  async getEvidenceCustody(reportId: string, evidenceId: string) {
+    return request<{ events: Array<{ id: string; action: string; actorId?: string; metadata?: any; createdAt: number }> }>(
+      `/reports/${reportId}/evidence/${evidenceId}/custody`
     );
+  },
+
+  async listReportRevisions(id: string) {
+    return request<{
+      revisions: Array<{ id: string; version: number; actorId?: string; createdAt: number; status?: string; classification?: string; title?: string }>;
+    }>(`/reports/${id}/revisions`);
+  },
+
+  // Trilha de auditoria filtrada só pra este caso — diferente da cronologia
+  // de fatos (CaseTimelineEvent) da aba "Cronologia".
+  async getReportAuditTrail(id: string) {
+    return request<{ events: Array<{ id: string; action: string; targetType: string; actorDisplayName: string; metadata?: any; createdAt: number }> }>(
+      `/reports/${id}/timeline`
+    );
+  },
+
+  // Dono do caso autoriza um operativo específico direto, sem esperar pedido.
+  async grantReportAccess(reportId: string, userId: string) {
+    return request<{ granted: { userId: string; displayName: string } }>(`/reports/${reportId}/grant`, {
+      method: "POST",
+      body: JSON.stringify({ userId }),
+    });
+  },
+
+  // Assistente do BlindAI/Grok — confirmado em routes/reports.js. Exige
+  // consent:true; includeSensitive controla se CPF/CNPJ/e-mail são
+  // suprimidos do texto enviado antes de sair do servidor.
+  async aiAssist(reportId: string, mode: "resumo" | "parecer" | "hipoteses" | "revisao", includeSensitive = false) {
+    return request<{ text: string; provider: string; humanReviewRequired: boolean }>(`/reports/${reportId}/ai/assist`, {
+      method: "POST",
+      body: JSON.stringify({ mode, consent: true, includeSensitive }),
+    });
   },
 
   // ---- /case-intelligence/:reportId ----
