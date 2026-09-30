@@ -22,3 +22,15 @@ export async function setJson<T>(key: string, value: T): Promise<void> {
     await SecureStore.setItemAsync(key, raw);
   }
 }
+
+export async function removeJson(key: string): Promise<void> {
+  try {
+    if (Platform.OS === "web") {
+      window.localStorage.removeItem(key);
+    } else {
+      await SecureStore.deleteItemAsync(key);
+    }
+  } catch {
+    // sem cache pra limpar — tudo bem.
+  }
+}

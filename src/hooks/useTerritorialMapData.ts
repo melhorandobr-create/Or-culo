@@ -1,33 +1,20 @@
-import { useCallback, useEffect, useState } from "react";
-import { api, Report, SourceMonitor, ApiError } from "../api/client";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { api, SourceMonitor, ApiError } from "../api/client";
+import { useCases } from "../contexts/CasesContext";
 
 export type MapLayer = "cases" | "sources" | "flights" | "strategic";
 
+// "reports" vem da mesma fonte compartilhada do resto do app (CasesContext)
+// — antes o mapa fazia sua própria busca de listReports(), uma terceira
+// cópia da mesma requisição (Dashboard e as telas de sistema já tinham
+// cada uma a sua). Agora ganha cache offline de graça também.
 export function useTerritorialMapData(layer: MapLayer) {
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [reports, setReports] = useState<Report[]>([]);
+  const { loading, error, reports: allReports, offline, cachedAt } = useCases();
+  const reports = useMemo(() => allReports.filter((r) => r.operationLatitude != null && r.operationLongitude != null), [allReports]);
+
   const [flights, setFlights] = useState<any[]>([]);
   const [flightsError, setFlightsError] = useState<string | null>(null);
   const [monitors, setMonitors] = useState<SourceMonitor[]>([]);
-
-  const load = useCallback(async () => {
-    setError(null);
-    try {
-      const res = await api.listReports();
-      // Confirmado em routes/reports.js: coordenadas vêm como
-      // operationLatitude/operationLongitude, nunca lat/lng.
-      setReports((res.reports || []).filter((r) => r.operationLatitude != null && r.operationLongitude != null));
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Sem conexão com o servidor.");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    load();
-  }, [load]);
 
   const loadFlights = useCallback(async () => {
     setFlightsError(null);
@@ -57,5 +44,5 @@ export function useTerritorialMapData(layer: MapLayer) {
     if (layer === "sources") loadMonitors();
   }, [layer, loadMonitors]);
 
-  return { loading, error, reports, flights, flightsError, monitors };
+  return { loading, error, reports, flights, flightsError, monitors, offline, cachedAt };
 }

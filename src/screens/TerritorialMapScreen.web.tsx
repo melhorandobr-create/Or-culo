@@ -31,7 +31,7 @@ export default function TerritorialMapScreenWeb() {
   const navigation = useNavigation<any>();
 
   const [layer, setLayer] = useState<MapLayer>("cases");
-  const { loading, error, reports, flights, flightsError, monitors } = useTerritorialMapData(layer);
+  const { loading, error, reports, flights, flightsError, monitors, offline, cachedAt } = useTerritorialMapData(layer);
 
   const clusters = useMemo(
     () =>
@@ -122,9 +122,11 @@ export default function TerritorialMapScreenWeb() {
         </View>
       </View>
 
-      {error && (
+      {(error || offline) && (
         <View style={styles.errorBanner} pointerEvents="none">
-          <Text style={styles.errorText}>{error}</Text>
+          <Text style={styles.errorText}>
+            {error || `Sem conexão — mostrando dados salvos ${cachedAt ? `de ${new Date(cachedAt).toLocaleString("pt-BR")}` : "localmente"}.`}
+          </Text>
         </View>
       )}
 

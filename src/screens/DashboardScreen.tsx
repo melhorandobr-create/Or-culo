@@ -12,14 +12,14 @@ import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../contexts/ThemeContext";
 import { useAuth } from "../contexts/AuthContext";
+import { useCases } from "../contexts/CasesContext";
 import { Theme } from "../theme";
-import { api, Report, ApiError } from "../api/client";
+import { api } from "../api/client";
+import { OfflineBanner } from "../components/OfflineBanner";
 
-interface Stats {
-  pins: number;
+interface ExtraStats {
   sources: number;
   pending: number;
-  secret: number;
 }
 
 export default function DashboardScreen() {
@@ -28,47 +28,49 @@ export default function DashboardScreen() {
   const styles = useMemo(() => buildStyles(theme), [theme]);
   const navigation = useNavigation<any>();
   const { user } = useAuth();
+  // Casos vêm da fonte compartilhada (CasesContext) — mesma que alimenta
+  // Central de Comando/Correlação/Timeline, com o mesmo cache offline.
+  // Antes o Dashboard refazia essa busca por conta própria, duplicando
+  // requisições e sem cache nenhum.
+  const { loading: loadingCases, error: casesError, reports, offline, cachedAt, reload: reloadCases } = useCases();
 
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [reports, setReports] = useState<Report[]>([]);
-  const [stats, setStats] = useState<Stats>({ pins: 0, sources: 0, pending: 0, secret: 0 });
+  const [extraStats, setExtraStats] = useState<ExtraStats>({ sources: 0, pending: 0 });
 
-  const load = useCallback(async () => {
-    setError(null);
+  const loadExtras = useCallback(async () => {
     try {
-      const [reportsRes, monitorsRes, pendingRes] = await Promise.all([
-        api.listReports(),
+      const [monitorsRes, pendingRes] = await Promise.all([
         api.listSourceMonitors().catch(() => ({ monitors: [] })),
         api.listIncomingAccessRequests().catch(() => ({ requests: [] })),
       ]);
-      const allReports = reportsRes.reports || [];
-      setReports(allReports);
-      setStats({
-        pins: allReports.length,
-        // "active"/"alertCount" não existem no schema real de SourceMonitor
-        // (confirmado em routes/publicData.js) — trocado por métricas reais.
+      setExtraStats({
         sources: (monitorsRes as any).monitors?.length ?? 0,
         pending: (pendingRes as any).requests?.filter((r: any) => r.status === "pending" || !r.status).length ?? 0,
-        secret: allReports.filter((r) => r.classification === "SECRETO").length,
       });
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Sem conexão com o servidor.");
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
+    } catch {
+      // estatísticas extras são só um plus visual — falha aqui não deve travar o dashboard.
     }
   }, []);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    loadExtras();
+  }, [loadExtras]);
 
-  function handleRefresh() {
+  const stats = {
+    pins: reports.length,
+    sources: extraStats.sources,
+    pending: extraStats.pending,
+    secret: reports.filter((r) => r.classification === "SECRETO").length,
+  };
+
+  async function handleRefresh() {
     setRefreshing(true);
-    load();
+    await Promise.all([reloadCases(), loadExtras()]);
+    setRefreshing(false);
   }
+
+  const loading = loadingCases && reports.length === 0;
+  const error = casesError;
 
   const initials = (user?.displayName || user?.username || "??")
     .split(/\s+/)
@@ -111,6 +113,7 @@ export default function DashboardScreen() {
           </View>
         </View>
 
+        {offline && <OfflineBanner cachedAt={cachedAt} />}
         {error && (
           <View style={styles.errorBanner}>
             <Text style={styles.errorText}>{error}</Text>
