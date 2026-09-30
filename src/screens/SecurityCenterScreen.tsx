@@ -5,6 +5,7 @@ import { useTheme } from "../contexts/ThemeContext";
 import { useAuth } from "../contexts/AuthContext";
 import { Theme } from "../theme";
 import { api, SecurityIncident, ApiError } from "../api/client";
+import { useProximityAlerts } from "../hooks/useProximityAlerts";
 
 type Panel = "none" | "mfaSetup" | "mfaDisable" | "changePassword" | "incident";
 
@@ -13,6 +14,7 @@ export default function SecurityCenterScreen() {
   const { color } = theme;
   const styles = useMemo(() => buildStyles(theme), [theme]);
   const { user, refreshUser, applyNewToken, logout } = useAuth();
+  const proximity = useProximityAlerts();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -270,6 +272,29 @@ export default function SecurityCenterScreen() {
             <Ionicons name="chevron-forward" size={15} color={color.textFaint} />
           </Pressable>
         </View>
+
+        <Text style={styles.sectionLabel}>Alertas de campo</Text>
+        <View style={[styles.card, { padding: 0, marginBottom: theme.space.md }]}>
+          <View style={styles.row}>
+            <View style={[styles.rowIcon, { backgroundColor: color.dangerTint }]}>
+              <Ionicons name="navigate-circle-outline" size={16} color={color.danger} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.rowTitle}>Alerta de proximidade</Text>
+              <Text style={styles.rowSubtitle}>
+                {proximity.loading
+                  ? "Carregando…"
+                  : `Notifica quando você chega perto de um dos ${proximity.regionsCount} casos georreferenciados`}
+              </Text>
+            </View>
+            <Switch value={proximity.enabled} onValueChange={proximity.toggle} disabled={proximity.loading} />
+          </View>
+        </View>
+        {proximity.error && (
+          <Text style={[styles.emptyText, { color: color.danger, textAlign: "left", paddingHorizontal: 4, marginTop: -6, marginBottom: theme.space.lg }]}>
+            {proximity.error}
+          </Text>
+        )}
 
         <Text style={styles.sectionLabel}>Sessões ativas</Text>
         <View style={[styles.card, { padding: 0, marginBottom: theme.space.md }]}>

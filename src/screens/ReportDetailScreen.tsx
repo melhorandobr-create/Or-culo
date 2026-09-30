@@ -14,12 +14,18 @@ import {
 import * as ImagePicker from "expo-image-picker";
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
+import * as MediaLibrary from "expo-media-library";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../contexts/ThemeContext";
 import { Theme } from "../theme";
 import { api, getToken, Report, Evidence, ApiError } from "../api/client";
 import { RelationshipGraph } from "../components/RelationshipGraph";
+import { GpsTrailPanel } from "../components/GpsTrailPanel";
+import { AudioEvidenceRecorder } from "../components/AudioEvidenceRecorder";
+import { AudioEvidencePlayer } from "../components/AudioEvidencePlayer";
+import { DocumentOcrCapture } from "../components/DocumentOcrCapture";
+import { captureForensicMetadata } from "../utils/forensicMetadata";
 import {
   RELIABILITY_CODES,
   CREDIBILITY_CODES,
@@ -29,7 +35,7 @@ import {
   admiraltyToConfidence,
 } from "../constants/admiralty";
 
-type Tab = "timeline" | "entities" | "hypotheses" | "evidence" | "tasks" | "ai" | "history" | "access";
+type Tab = "timeline" | "entities" | "hypotheses" | "evidence" | "field" | "tasks" | "ai" | "history" | "access";
 
 const STATUS_OPTIONS: Array<Report["status"]> = ["RASCUNHO", "EM_REVISAO", "FINALIZADO", "ARQUIVADO"];
 const ENTITY_TYPES = ["PESSOA", "EMPRESA", "VEICULO", "TELEFONE", "ENDERECO", "CONTA", "DOCUMENTO", "EVENTO", "OUTRO"];
@@ -250,11 +256,29 @@ export default function ReportDetailScreen() {
     setError(null);
     try {
       const fileName = asset.fileName || `${kind === "video" ? "video" : "foto"}-${Date.now()}.${kind === "video" ? "mp4" : "jpg"}`;
+      // Metadata forense (GPS + timestamp) capturada pelo próprio app no
+      // instante do anexo, independente do EXIF original do arquivo.
+      const caption = await captureForensicMetadata();
       const res = await api.uploadEvidence(reportId, {
         kind,
         file: { uri: asset.uri, name: fileName, type: asset.mimeType || (kind === "video" ? "video/mp4" : "image/jpeg") },
+        caption,
       });
       setEvidence((prev) => [res.evidence, ...prev]);
+      // Depois do upload criptografado confirmado, remove o arquivo
+      // original da galeria do dispositivo — evita cópia solta e sem
+      // controle fora do sistema. Se a permissão não for concedida, o
+      // upload já aconteceu normalmente, só não some da galeria.
+      if (Platform.OS !== "web" && asset.assetId) {
+        try {
+          const mediaPerm = await MediaLibrary.requestPermissionsAsync();
+          if (mediaPerm.granted) {
+            await new MediaLibrary.Asset(asset.assetId).delete();
+          }
+        } catch {
+          // remoção do original é um plus de segurança, não deve travar o fluxo se falhar.
+        }
+      }
     } catch (err) {
       Alert.alert("Erro ao anexar", err instanceof ApiError ? err.message : "Não foi possível enviar o arquivo.");
     } finally {
@@ -445,6 +469,7 @@ export default function ReportDetailScreen() {
           <SegButton theme={theme} active={tab === "entities"} label="Entidades" onPress={() => setTab("entities")} />
           <SegButton theme={theme} active={tab === "hypotheses"} label="Hipóteses" onPress={() => setTab("hypotheses")} />
           <SegButton theme={theme} active={tab === "evidence"} label="Evidências" onPress={() => setTab("evidence")} />
+          <SegButton theme={theme} active={tab === "field"} label="Campo" onPress={() => setTab("field")} />
           <SegButton theme={theme} active={tab === "tasks"} label="Tarefas" onPress={() => setTab("tasks")} />
           <SegButton theme={theme} active={tab === "ai"} label="Assistente IA" onPress={() => setTab("ai")} />
           <SegButton theme={theme} active={tab === "history"} label="Histórico" onPress={() => setTab("history")} />
@@ -468,12 +493,15 @@ export default function ReportDetailScreen() {
             uploading={uploading}
             onAttach={handleAttach}
             onDelete={handleDeleteEvidence}
+            onEvidenceAdded={(ev) => setEvidence((prev) => [ev, ...prev])}
           />
         )}
 
         {tab === "hypotheses" && (
           <HypothesesTab theme={theme} reportId={reportId!} hypotheses={hypotheses} isOwner={isOwner} onCreated={load} />
         )}
+
+        {tab === "field" && <GpsTrailPanel theme={theme} reportId={reportId!} />}
 
         {tab === "tasks" && (
           <TasksTab theme={theme} reportId={reportId!} tasks={tasks} isOwner={isOwner} onCreated={load} />
@@ -954,6 +982,7 @@ function EvidenceTab({
   uploading,
   onAttach,
   onDelete,
+  onEvidenceAdded,
 }: {
   theme: Theme;
   reportId: string;
@@ -962,6 +991,7 @@ function EvidenceTab({
   uploading: boolean;
   onAttach: (kind: "photo" | "video") => void;
   onDelete: (evidenceId: string) => void;
+  onEvidenceAdded: (evidence: Evidence) => void;
 }) {
   const { color } = theme;
   const [checking, setChecking] = useState(false);
@@ -1019,6 +1049,8 @@ function EvidenceTab({
           </Pressable>
         </View>
       )}
+      {isOwner && <AudioEvidenceRecorder reportId={reportId} theme={theme} onUploaded={onEvidenceAdded} />}
+      {isOwner && <DocumentOcrCapture reportId={reportId} theme={theme} onUploaded={onEvidenceAdded} />}
       {uploading && <ActivityIndicator color={color.primary} />}
 
       {evidence.length > 0 && (
@@ -1053,15 +1085,30 @@ function EvidenceTab({
                 ) : (
                   <View style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: "#EAF1FB", alignItems: "center", justifyContent: "center" }}>
                     <Ionicons
-                      name={ev.kind === "video" ? "videocam-outline" : ev.kind === "link" ? "link-outline" : "document-outline"}
+                      name={
+                        ev.mimeType?.startsWith("audio/")
+                          ? "mic-outline"
+                          : ev.kind === "video"
+                          ? "videocam-outline"
+                          : ev.kind === "link"
+                          ? "link-outline"
+                          : "document-outline"
+                      }
                       size={16}
                       color="#64748B"
                     />
                   </View>
                 )}
                 <View style={{ flex: 1 }}>
-                  <Text style={stylesShared.hypothesisTitle}>{ev.originalName || ev.caption || "Anexo"}</Text>
+                  <Text style={stylesShared.hypothesisTitle}>
+                    {ev.mimeType?.startsWith("audio/") ? "Evidência de áudio" : ev.originalName || ev.caption || "Anexo"}
+                  </Text>
                   {ev.caption ? <Text style={{ fontSize: 11.5, color: "#64748B", marginTop: 2 }}>{ev.caption}</Text> : null}
+                  {ev.mimeType?.startsWith("audio/") && (
+                    <View style={{ marginTop: 6 }}>
+                      <AudioEvidencePlayer theme={theme} reportId={reportId} evidenceId={ev.id} />
+                    </View>
+                  )}
                   <Text style={stylesShared.evidenceMeta}>
                     {ev.sha256 ? `${String(ev.sha256).slice(0, 8)}…` : ""}
                     {ev.size ? ` · ${Math.round(ev.size / 1024)} KB` : ""}

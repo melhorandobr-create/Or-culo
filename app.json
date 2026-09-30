@@ -3,7 +3,7 @@
     "name": "ORÁCULO",
     "slug": "svin",
     "description": "ORÁCULO — plataforma privada para documentação, análise e gestão auditável de casos.",
-    "version": "1.3.1",
+    "version": "1.4.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -24,7 +24,7 @@
     },
     "android": {
       "package": "com.fireteam.vigia",
-      "versionCode": 6,
+      "versionCode": 7,
       "adaptiveIcon": {
         "backgroundColor": "#1B4B8F",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -56,6 +56,32 @@
           "photosPermission": "O ORÁCULO usa a galeria somente quando você decide anexar fotos ou vídeos a um caso.",
           "cameraPermission": "O ORÁCULO usa a câmera somente quando você decide registrar uma evidência."
         }
+      ],
+      "expo-audio",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "O ORÁCULO usa localização para registrar a trilha de campo do operativo e para alertar sobre proximidade de pontos de interesse ligados aos seus casos.",
+          "locationWhenInUsePermission": "O ORÁCULO usa localização para registrar a trilha de campo do operativo e marcar onde as evidências foram capturadas.",
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "O ORÁCULO acessa a galeria para localizar o arquivo original depois de anexar uma evidência.",
+          "savePhotosPermission": "O ORÁCULO não salva fotos na galeria.",
+          "isAccessMediaLocationEnabled": true
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/android-icon-foreground.png",
+          "color": "#1B4B8F"
+        }
       ]
     ],
     "extra": {
@@ -64,6 +90,10 @@
       }
     },
     "sdkVersion": "57.0.0",
-    "platforms": ["ios", "android", "web"]
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ]
   }
 }
