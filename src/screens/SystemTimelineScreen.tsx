@@ -5,13 +5,14 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../contexts/ThemeContext";
 import { Theme } from "../theme";
 import { useAllCasesIntelligence } from "../hooks/useAllCasesIntelligence";
+import { OfflineBanner } from "../components/OfflineBanner";
 
 export default function SystemTimelineScreen() {
   const theme = useTheme();
   const { color } = theme;
   const styles = useMemo(() => buildStyles(theme), [theme]);
   const navigation = useNavigation<any>();
-  const { loading, error, reports, intelByReportId } = useAllCasesIntelligence();
+  const { loading, error, reports, intelByReportId, offline, cachedAt } = useAllCasesIntelligence();
 
   const events = useMemo(() => {
     const all: Array<{ id: string; title: string; description?: string; occurredAt: number; reportId: string; reportTitle: string; factType?: string }> = [];
@@ -46,6 +47,7 @@ export default function SystemTimelineScreen() {
         <ActivityIndicator style={{ marginTop: 40 }} color={color.primary} />
       ) : (
         <ScrollView contentContainerStyle={styles.scroll}>
+          {offline && <OfflineBanner cachedAt={cachedAt} />}
           {error && <Text style={styles.errorText}>{error}</Text>}
           <Text style={styles.subtitle}>{events.length} eventos, de todos os casos visíveis, mais recentes primeiro.</Text>
 

@@ -5,6 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../contexts/ThemeContext";
 import { Theme } from "../theme";
 import { useAllCasesIntelligence } from "../hooks/useAllCasesIntelligence";
+import { OfflineBanner } from "../components/OfflineBanner";
 import { useWatchlist, matchWatchlist } from "../hooks/useWatchlist";
 
 // Vigilância guardada só neste aparelho (não é um dado do servidor) — o
@@ -16,7 +17,7 @@ export default function WatchlistScreen() {
   const styles = useMemo(() => buildStyles(theme), [theme]);
   const navigation = useNavigation<any>();
   const { terms, loading: loadingTerms, addTerm, removeTerm } = useWatchlist();
-  const { loading: loadingCases, reports, intelByReportId } = useAllCasesIntelligence();
+  const { loading: loadingCases, reports, intelByReportId, offline, cachedAt } = useAllCasesIntelligence();
   const [newTerm, setNewTerm] = useState("");
 
   const hits = useMemo(() => matchWatchlist(terms, reports, intelByReportId), [terms, reports, intelByReportId]);
@@ -31,6 +32,7 @@ export default function WatchlistScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll}>
+        {offline && <OfflineBanner cachedAt={cachedAt} />}
         <Text style={styles.subtitle}>
           Cadastre nomes ou termos de interesse. Toda vez que abrir esta tela, o app verifica se algum deles aparece
           como entidade em qualquer caso visível pra você.

@@ -8,6 +8,7 @@ import { useTheme } from "../contexts/ThemeContext";
 import { Theme } from "../theme";
 import { api, ApiError } from "../api/client";
 import { useAllCasesIntelligence } from "../hooks/useAllCasesIntelligence";
+import { OfflineBanner } from "../components/OfflineBanner";
 
 // Visão de comando: cruza o "command" (risco, fase, tarefas) de TODOS os
 // casos visíveis de uma vez, em vez de olhar caso por caso. É a diferença
@@ -17,7 +18,7 @@ export default function CommandCenterScreen() {
   const { color } = theme;
   const styles = useMemo(() => buildStyles(theme), [theme]);
   const navigation = useNavigation<any>();
-  const { loading, error, reports, intelByReportId } = useAllCasesIntelligence();
+  const { loading, error, reports, intelByReportId, offline, cachedAt } = useAllCasesIntelligence();
 
   const rows = reports.map((r) => ({
     report: r,
@@ -47,6 +48,31 @@ export default function CommandCenterScreen() {
   const [generatingBriefing, setGeneratingBriefing] = useState(false);
   const [briefing, setBriefing] = useState<string | null>(null);
 
+  // Monta um apêndice denso por caso (entidades, cronologia, hipóteses,
+  // command) — tudo que já está carregado no hook compartilhado — e injeta
+  // isso dentro do campo "question" do endpoint cross-case. O servidor já
+  // soma título/resumo/relato de cada caso selecionado; esse apêndice dá à
+  // IA o resto do quadro (quem, quando, o que se suspeita) sem precisar
+  // mudar o backend de novo.
+  function buildDenseContext(targetIds: string[]): string {
+    const parts: string[] = [];
+    for (const id of targetIds) {
+      const report = reports.find((r) => r.id === id);
+      const intel = intelByReportId[id] as any;
+      if (!report) continue;
+      const entities = (intel?.entities || []).map((e: any) => `${e.name} (${e.type}${e.confidence ? `, confiança ${e.confidence}` : ""})`).join("; ");
+      const timeline = (intel?.timeline || [])
+        .slice(0, 10)
+        .map((t: any) => `${t.occurredAt ? new Date(t.occurredAt).toLocaleDateString("pt-BR") : "?"}: ${t.title}`)
+        .join(" | ");
+      const hypotheses = (intel?.hypotheses || []).map((h: any) => `"${h.statement}" (${h.confidence || "?"})`).join("; ");
+      parts.push(
+        `## ${report.title}\nRisco: ${intel?.command?.riskLevel || report.riskLevel || "?"} | Fase: ${intel?.command?.operationPhase || report.operationPhase || "?"} | Tarefas atrasadas: ${intel?.command?.overdueTasks ?? 0}\nEntidades: ${entities || "(nenhuma registrada)"}\nCronologia: ${timeline || "(nenhum evento registrado)"}\nHipóteses: ${hypotheses || "(nenhuma registrada)"}`
+      );
+    }
+    return parts.join("\n\n");
+  }
+
   async function generateBriefing() {
     const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
     const recent = reports.filter((r) => (r.updatedAt || 0) >= weekAgo);
@@ -58,10 +84,19 @@ export default function CommandCenterScreen() {
     setGeneratingBriefing(true);
     setBriefing(null);
     try {
-      const res = await api.aiCrossCaseAssist(
-        targetIds,
-        "Gere um briefing executivo diário: liste os casos por prioridade (risco e urgência primeiro), o que mudou recentemente em cada um, e recomende as 3 próximas ações mais importantes no total."
-      );
+      const monitorsRes = await api.listSourceMonitors().catch(() => ({ monitors: [] }));
+      const monitorsContext = (monitorsRes.monitors || [])
+        .map((m) => `${m.kind}: ${m.query}${m.tribunal ? ` (${m.tribunal})` : ""} — ${m.purpose || "sem finalidade registrada"}`)
+        .join("\n");
+      const instructions =
+        "Atue como consultor de inteligência autônomo. Com base em TODO o contexto abaixo (entidades, cronologia, hipóteses e status de cada caso, mais as fontes públicas já monitoradas), produza um parecer denso e completo em 4 partes: " +
+        "(1) Briefing executivo — prioridade por risco/urgência e o que mudou recentemente; " +
+        "(2) Tendência de escalada — cruzando as datas da cronologia de todos os casos, aponte se a atividade está intensificando, estável ou arrefecendo, e em quais casos especificamente; " +
+        "(3) Expectativa/previsão — o que é razoável esperar acontecer a seguir em cada caso de risco alto, com base só no padrão observado, deixando claro que é inferência, não fato; " +
+        "(4) Próximas ações recomendadas — as 5 mais importantes, priorizadas, incluindo se alguma fonte monitorada merece atenção reforçada. Não invente fatos além do que está nos dados abaixo.\n\n" +
+        buildDenseContext(targetIds) +
+        (monitorsContext ? `\n\n## Fontes públicas monitoradas\n${monitorsContext}` : "");
+      const res = await api.aiCrossCaseAssist(targetIds, instructions);
       setBriefing(res.text);
     } catch (err) {
       Alert.alert("Erro", err instanceof ApiError ? err.message : "BlindAI/Grok indisponível.");
@@ -101,6 +136,7 @@ export default function CommandCenterScreen() {
         <ActivityIndicator style={{ marginTop: 40 }} color={color.primary} />
       ) : (
         <ScrollView contentContainerStyle={styles.scroll}>
+          {offline && <OfflineBanner cachedAt={cachedAt} />}
           {error && <Text style={styles.errorText}>{error}</Text>}
 
           <View style={styles.statsGrid}>
@@ -115,15 +151,15 @@ export default function CommandCenterScreen() {
           <Pressable style={[styles.briefingButton, generatingBriefing && { opacity: 0.6 }]} disabled={generatingBriefing} onPress={generateBriefing}>
             {generatingBriefing ? <ActivityIndicator color="#fff" /> : (
               <>
-                <Ionicons name="newspaper-outline" size={15} color="#fff" />
-                <Text style={styles.briefingButtonText}>Gerar briefing (últimos 7 dias)</Text>
+                <Ionicons name="sparkles-outline" size={15} color="#fff" />
+                <Text style={styles.briefingButtonText}>Prognose (briefing + previsão)</Text>
               </>
             )}
           </Pressable>
           {briefing && (
             <View style={styles.briefingCard}>
               <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-                <Text style={styles.phaseLabel}>Briefing gerado</Text>
+                <Text style={styles.phaseLabel}>Prognose · exige revisão humana</Text>
                 <Pressable onPress={exportBriefingPdf}>
                   <Ionicons name="download-outline" size={16} color={color.primary} />
                 </Pressable>

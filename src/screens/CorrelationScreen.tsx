@@ -5,6 +5,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../contexts/ThemeContext";
 import { Theme } from "../theme";
 import { useAllCasesIntelligence } from "../hooks/useAllCasesIntelligence";
+import { OfflineBanner } from "../components/OfflineBanner";
+import { similarity } from "../utils/fuzzyMatch";
 
 function normalize(name: string) {
   return name.trim().toLowerCase().replace(/\s+/g, " ");
@@ -15,7 +17,7 @@ export default function CorrelationScreen() {
   const { color } = theme;
   const styles = useMemo(() => buildStyles(theme), [theme]);
   const navigation = useNavigation<any>();
-  const { loading, error, reports, intelByReportId } = useAllCasesIntelligence();
+  const { loading, error, reports, intelByReportId, offline, cachedAt } = useAllCasesIntelligence();
 
   const groups = useMemo(() => {
     const byName = new Map<string, { display: string; type: string; hits: Array<{ reportId: string; reportTitle: string }> }>();
@@ -36,6 +38,31 @@ export default function CorrelationScreen() {
       .sort((a, b) => b.hits.length - a.hits.length);
   }, [reports, intelByReportId]);
 
+  // Nomes parecidos mas não idênticos (ex.: "José da Silva" vs "Jose
+  // Silva") — mesma provável entidade grafada diferente entre casos, algo
+  // que o cruzamento por nome exato acima não pega.
+  const nearDuplicates = useMemo(() => {
+    const allNames = new Map<string, string>(); // normalizado -> display
+    for (const r of reports) {
+      const entities = (intelByReportId[r.id] as any)?.entities || [];
+      for (const e of entities) {
+        if (e?.name) allNames.set(normalize(String(e.name)), e.name);
+      }
+    }
+    const keys = Array.from(allNames.keys());
+    const pairs: Array<{ a: string; b: string; score: number }> = [];
+    for (let i = 0; i < keys.length; i++) {
+      for (let j = i + 1; j < keys.length; j++) {
+        if (keys[i] === keys[j]) continue;
+        const score = similarity(keys[i], keys[j]);
+        if (score >= 0.72 && score < 1) {
+          pairs.push({ a: allNames.get(keys[i])!, b: allNames.get(keys[j])!, score });
+        }
+      }
+    }
+    return pairs.sort((x, y) => y.score - x.score).slice(0, 20);
+  }, [reports, intelByReportId]);
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -49,6 +76,7 @@ export default function CorrelationScreen() {
         <ActivityIndicator style={{ marginTop: 40 }} color={color.primary} />
       ) : (
         <ScrollView contentContainerStyle={styles.scroll}>
+          {offline && <OfflineBanner cachedAt={cachedAt} />}
           {error && <Text style={styles.errorText}>{error}</Text>}
           <Text style={styles.subtitle}>
             Entidades (pessoas, empresas, veículos...) que aparecem em mais de um caso — cruzamento automático por nome.
@@ -80,6 +108,20 @@ export default function CorrelationScreen() {
               ))}
             </View>
           )}
+
+          {nearDuplicates.length > 0 && (
+            <>
+              <Text style={[styles.sectionLabel, { marginTop: theme.space.xxl }]}>Possíveis duplicatas (nomes parecidos)</Text>
+              <View style={{ gap: theme.space.md }}>
+                {nearDuplicates.map((p, i) => (
+                  <View key={i} style={styles.dupCard}>
+                    <Text style={styles.dupText}>"{p.a}" ≈ "{p.b}"</Text>
+                    <Text style={styles.dupScore}>{Math.round(p.score * 100)}% parecido</Text>
+                  </View>
+                ))}
+              </View>
+            </>
+          )}
         </ScrollView>
       )}
     </View>
@@ -105,5 +147,9 @@ function buildStyles(theme: Theme) {
     countBadgeText: { fontSize: 10.5, color: color.warning, fontWeight: "700" },
     hitRow: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: color.bg, borderRadius: 9, padding: 9 },
     hitTitle: { flex: 1, fontSize: 12, color: color.text, fontWeight: "600" },
+    sectionLabel: { fontSize: 11.5, fontWeight: "700", color: color.textFaint, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 10 },
+    dupCard: { backgroundColor: color.surface, borderRadius: radius.lg, padding: 12, flexDirection: "row", justifyContent: "space-between", alignItems: "center", ...theme.shadow.card },
+    dupText: { fontSize: 12.5, color: color.text, flex: 1, marginRight: 8 },
+    dupScore: { fontSize: 11, color: color.warning, fontWeight: "700" },
   });
 }
