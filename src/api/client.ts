@@ -1,11 +1,41 @@
 import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
+import { getJson, setJson } from "../utils/deviceStorage";
 
 // Backend real do ORÁCULO (vigia-svin), lido diretamente do código-fonte do
 // servidor em produção (/opt/vigia-svin) em 2026-09-24. Prefixos de rota
 // conferidos em server.js (app.use('/auth', ...), etc.) — nenhum chutado.
-const BASE_URL = "https://vigia.85-155-182-151.nip.io";
+const PUBLIC_URL = "https://vigia.85-155-182-151.nip.io";
+// Endereço privado via Tailscale (tailscale serve) — só acessível pelos
+// aparelhos autorizados na tailnet do usuário, mesmo sabendo o endereço.
+const PRIVATE_URL = "https://servidor-omni.tail449b1c.ts.net";
 const TOKEN_KEY = "oraculo_session_token";
+const NETWORK_MODE_KEY = "oraculo_network_mode";
+
+export type NetworkMode = "public" | "private";
+
+// Cache em memória pra `evidenceFileUrl` poder continuar síncrona (é usada
+// direto como `uri` de <Image>/player de áudio). Carregado do storage uma
+// vez no início do app; até isso resolver, usa o padrão público, que é o
+// comportamento de sempre — sem regressão.
+let currentNetworkMode: NetworkMode = "public";
+
+export async function initNetworkMode() {
+  currentNetworkMode = await getJson<NetworkMode>(NETWORK_MODE_KEY, "public");
+}
+
+export function getNetworkMode(): NetworkMode {
+  return currentNetworkMode;
+}
+
+export async function setNetworkMode(mode: NetworkMode) {
+  currentNetworkMode = mode;
+  await setJson(NETWORK_MODE_KEY, mode);
+}
+
+function getBaseUrl(): string {
+  return currentNetworkMode === "private" ? PRIVATE_URL : PUBLIC_URL;
+}
 
 export class ApiError extends Error {
   status: number;
@@ -52,7 +82,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   };
   if (token) headers.Authorization = `Bearer ${token}`;
 
-  const res = await fetch(`${BASE_URL}${path}`, { ...options, headers });
+  const res = await fetch(`${getBaseUrl()}${path}`, { ...options, headers });
   const body = await res.json().catch(() => ({}));
 
   if (res.status === 401 && token) {
@@ -353,7 +383,7 @@ export const api = {
     } else {
       form.append("file", params.file as any);
     }
-    const res = await fetch(`${BASE_URL}/reports/${reportId}/evidence`, {
+    const res = await fetch(`${getBaseUrl()}/reports/${reportId}/evidence`, {
       method: "POST",
       headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       body: form,
@@ -370,7 +400,7 @@ export const api = {
   // Retorna a URL autenticada do binário — o app precisa mandar o header
   // Authorization junto (RN Image aceita via `source={{uri, headers}}`).
   evidenceFileUrl(reportId: string, evidenceId: string) {
-    return `${BASE_URL}/reports/${reportId}/evidence/${evidenceId}`;
+    return `${getBaseUrl()}/reports/${reportId}/evidence/${evidenceId}`;
   },
 
   async listReportTasks(id: string) {

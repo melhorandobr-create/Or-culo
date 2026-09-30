@@ -4,7 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../contexts/ThemeContext";
 import { useAuth } from "../contexts/AuthContext";
 import { Theme } from "../theme";
-import { api, SecurityIncident, ApiError } from "../api/client";
+import { api, SecurityIncident, ApiError, NetworkMode, getNetworkMode, setNetworkMode } from "../api/client";
 import { useProximityAlerts } from "../hooks/useProximityAlerts";
 
 type Panel = "none" | "mfaSetup" | "mfaDisable" | "changePassword" | "incident";
@@ -15,6 +15,19 @@ export default function SecurityCenterScreen() {
   const styles = useMemo(() => buildStyles(theme), [theme]);
   const { user, refreshUser, applyNewToken, logout } = useAuth();
   const proximity = useProximityAlerts();
+  const [networkMode, setNetworkModeState] = useState<NetworkMode>(getNetworkMode());
+
+  async function toggleNetworkMode() {
+    const next: NetworkMode = networkMode === "private" ? "public" : "private";
+    await setNetworkMode(next);
+    setNetworkModeState(next);
+    Alert.alert(
+      "Rede alterada",
+      next === "private"
+        ? "Conectando pela rede privada (Tailscale). Se o app não carregar, confirme que o Tailscale está conectado neste aparelho."
+        : "Voltou pra rede pública."
+    );
+  }
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -295,6 +308,24 @@ export default function SecurityCenterScreen() {
             {proximity.error}
           </Text>
         )}
+
+        <Text style={styles.sectionLabel}>Rede</Text>
+        <View style={[styles.card, { padding: 0, marginBottom: theme.space.xxl }]}>
+          <View style={styles.row}>
+            <View style={[styles.rowIcon, { backgroundColor: networkMode === "private" ? color.successTint : color.infoTint }]}>
+              <Ionicons name={networkMode === "private" ? "lock-closed-outline" : "globe-outline"} size={16} color={networkMode === "private" ? color.success : color.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.rowTitle}>Rede privada (Tailscale)</Text>
+              <Text style={styles.rowSubtitle}>
+                {networkMode === "private"
+                  ? "Ativa — conectando só pela sua rede privada"
+                  : "Desativada — conectando pela internet pública"}
+              </Text>
+            </View>
+            <Switch value={networkMode === "private"} onValueChange={toggleNetworkMode} />
+          </View>
+        </View>
 
         <Text style={styles.sectionLabel}>Sessões ativas</Text>
         <View style={[styles.card, { padding: 0, marginBottom: theme.space.md }]}>
