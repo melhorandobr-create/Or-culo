@@ -14,7 +14,6 @@ import {
 import * as ImagePicker from "expo-image-picker";
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
-import * as MediaLibrary from "expo-media-library";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../contexts/ThemeContext";
@@ -26,6 +25,7 @@ import { AudioEvidenceRecorder } from "../components/AudioEvidenceRecorder";
 import { AudioEvidencePlayer } from "../components/AudioEvidencePlayer";
 import { DocumentOcrCapture } from "../components/DocumentOcrCapture";
 import { captureForensicMetadata } from "../utils/forensicMetadata";
+import { deleteOriginalAsset } from "../utils/mediaLibrarySafe";
 import {
   RELIABILITY_CODES,
   CREDIBILITY_CODES,
@@ -271,10 +271,7 @@ export default function ReportDetailScreen() {
       // upload já aconteceu normalmente, só não some da galeria.
       if (Platform.OS !== "web" && asset.assetId) {
         try {
-          const mediaPerm = await MediaLibrary.requestPermissionsAsync();
-          if (mediaPerm.granted) {
-            await new MediaLibrary.Asset(asset.assetId).delete();
-          }
+          await deleteOriginalAsset(asset.assetId);
         } catch {
           // remoção do original é um plus de segurança, não deve travar o fluxo se falhar.
         }
