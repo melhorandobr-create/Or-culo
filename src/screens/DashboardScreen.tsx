@@ -175,6 +175,15 @@ export default function DashboardScreen() {
             subtitle="Todos os eventos, de todos os casos, em ordem"
             onPress={() => navigation.navigate("SystemTimeline")}
           />
+          <QuickRow
+            theme={theme}
+            icon="sparkles-outline"
+            iconColor={color.primary}
+            tint={color.infoTint}
+            title="Assistente IA — múltiplos casos"
+            subtitle="Pergunte algo que cruze vários casos ao mesmo tempo"
+            onPress={() => navigation.navigate("CrossCaseAi")}
+          />
         </View>
 
         <View style={styles.sectionHeaderRow}>

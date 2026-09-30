@@ -441,6 +441,15 @@ export const api = {
     });
   },
 
+  // Rota nova (routes/crossCaseAi.js, mesma base /reports): pergunta livre
+  // cruzando vários casos de uma vez, em vez de um caso por vez.
+  async aiCrossCaseAssist(reportIds: string[], question: string) {
+    return request<{ text: string; provider: string; humanReviewRequired: boolean }>("/reports/ai/cross-case", {
+      method: "POST",
+      body: JSON.stringify({ reportIds, question }),
+    });
+  },
+
   // ---- /case-intelligence/:reportId ----
   // Endpoint único e combinado — confirmado no código real: devolve entidades,
   // relacionamentos, cronologia, hipóteses e um resumo "command" (riskLevel,

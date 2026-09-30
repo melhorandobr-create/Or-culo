@@ -17,6 +17,7 @@ import PublicSourcesScreen from "../screens/PublicSourcesScreen";
 import CommandCenterScreen from "../screens/CommandCenterScreen";
 import CorrelationScreen from "../screens/CorrelationScreen";
 import SystemTimelineScreen from "../screens/SystemTimelineScreen";
+import CrossCaseAiScreen from "../screens/CrossCaseAiScreen";
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -66,6 +67,7 @@ export default function RootNavigator() {
             <Stack.Screen name="CommandCenter" component={CommandCenterScreen} />
             <Stack.Screen name="Correlation" component={CorrelationScreen} />
             <Stack.Screen name="SystemTimeline" component={SystemTimelineScreen} />
+            <Stack.Screen name="CrossCaseAi" component={CrossCaseAiScreen} />
           </>
         ) : (
           <Stack.Screen name="Login" component={LoginScreen} />
