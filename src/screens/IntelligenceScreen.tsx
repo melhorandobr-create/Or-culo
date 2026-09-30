@@ -5,7 +5,12 @@ import { useTheme } from "../contexts/ThemeContext";
 import { Theme } from "../theme";
 import { api, ApiError } from "../api/client";
 
-type Kind = "company" | "sanctions" | "court";
+type Kind = "company" | "sanctions" | "court" | "cep" | "whois" | "wayback";
+
+// company/sanctions/court exigem finalidade (auditada, servidor exige mín.
+// 10 caracteres). cep/whois/wayback são consultas genuinamente públicas e
+// sem exigência de finalidade no backend (routes/osintExtra.js).
+const REQUIRES_PURPOSE: Kind[] = ["company", "sanctions", "court"];
 
 export default function IntelligenceScreen() {
   const theme = useTheme();
@@ -20,10 +25,16 @@ export default function IntelligenceScreen() {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<unknown>(null);
 
+  function selectKind(k: Kind) {
+    setKind(k);
+    setResult(null);
+    setError(null);
+  }
+
   async function handleQuery() {
     setError(null);
     setResult(null);
-    if (purpose.trim().length < 10) {
+    if (REQUIRES_PURPOSE.includes(kind) && purpose.trim().length < 10) {
       setError("Descreva a finalidade legítima da consulta (mín. 10 caracteres).");
       return;
     }
@@ -36,7 +47,10 @@ export default function IntelligenceScreen() {
       let res: unknown;
       if (kind === "company") res = await api.queryCompany(query.trim(), purpose.trim());
       else if (kind === "sanctions") res = await api.querySanctions(query.trim(), purpose.trim());
-      else res = await api.queryCourtCase(query.trim(), tribunal.trim(), purpose.trim());
+      else if (kind === "court") res = await api.queryCourtCase(query.trim(), tribunal.trim(), purpose.trim());
+      else if (kind === "cep") res = await api.queryCep(query.trim());
+      else if (kind === "whois") res = await api.queryWhois(query.trim());
+      else res = await api.queryWayback(query.trim());
       setResult(res);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Sem conexão com o servidor.");
@@ -44,6 +58,15 @@ export default function IntelligenceScreen() {
       setLoading(false);
     }
   }
+
+  const placeholders: Record<Kind, string> = {
+    company: "CNPJ (14 dígitos)",
+    sanctions: "Nome ou razão social",
+    court: "Número CNJ (20 dígitos)",
+    cep: "CEP (8 dígitos)",
+    whois: "Domínio (ex.: exemplo.com.br)",
+    wayback: "URL completa (https://...)",
+  };
 
   return (
     <View style={styles.container}>
@@ -53,22 +76,23 @@ export default function IntelligenceScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.list}>
-        <View style={styles.kindRow}>
-          <KindChip theme={theme} active={kind === "company"} label="CNPJ" onPress={() => { setKind("company"); setResult(null); setError(null); }} />
-          <KindChip theme={theme} active={kind === "sanctions"} label="Sanções" onPress={() => { setKind("sanctions"); setResult(null); setError(null); }} />
-          <KindChip theme={theme} active={kind === "court"} label="Processo" onPress={() => { setKind("court"); setResult(null); setError(null); }} />
+        <View style={styles.kindGrid}>
+          <KindChip theme={theme} active={kind === "company"} label="CNPJ" onPress={() => selectKind("company")} />
+          <KindChip theme={theme} active={kind === "sanctions"} label="Sanções" onPress={() => selectKind("sanctions")} />
+          <KindChip theme={theme} active={kind === "court"} label="Processo" onPress={() => selectKind("court")} />
+          <KindChip theme={theme} active={kind === "cep"} label="CEP" onPress={() => selectKind("cep")} />
+          <KindChip theme={theme} active={kind === "whois"} label="WHOIS" onPress={() => selectKind("whois")} />
+          <KindChip theme={theme} active={kind === "wayback"} label="Wayback" onPress={() => selectKind("wayback")} />
         </View>
 
         <TextInput
           style={styles.input}
-          placeholder={
-            kind === "company" ? "CNPJ (14 dígitos)" : kind === "sanctions" ? "Nome ou razão social" : "Número CNJ (20 dígitos)"
-          }
+          placeholder={placeholders[kind]}
           placeholderTextColor={color.textFaint}
           value={query}
           onChangeText={setQuery}
           autoCapitalize="none"
-          keyboardType={kind === "company" || kind === "court" ? "number-pad" : "default"}
+          keyboardType={kind === "company" || kind === "court" || kind === "cep" ? "number-pad" : "default"}
         />
 
         {kind === "court" && (
@@ -82,14 +106,16 @@ export default function IntelligenceScreen() {
           />
         )}
 
-        <TextInput
-          style={[styles.input, { minHeight: 70, textAlignVertical: "top" }]}
-          placeholder="Finalidade legítima da consulta (mín. 10 caracteres) — fica registrada em auditoria"
-          placeholderTextColor={color.textFaint}
-          value={purpose}
-          onChangeText={setPurpose}
-          multiline
-        />
+        {REQUIRES_PURPOSE.includes(kind) && (
+          <TextInput
+            style={[styles.input, { minHeight: 70, textAlignVertical: "top" }]}
+            placeholder="Finalidade legítima da consulta (mín. 10 caracteres) — fica registrada em auditoria"
+            placeholderTextColor={color.textFaint}
+            value={purpose}
+            onChangeText={setPurpose}
+            multiline
+          />
+        )}
 
         {error && <Text style={styles.errorText}>{error}</Text>}
 
@@ -119,7 +145,7 @@ function KindChip({ theme, active, label, onPress }: { theme: Theme; active: boo
     <Pressable
       onPress={onPress}
       style={{
-        flex: 1,
+        width: "31%",
         paddingVertical: 10,
         borderRadius: 10,
         alignItems: "center",
@@ -128,7 +154,7 @@ function KindChip({ theme, active, label, onPress }: { theme: Theme; active: boo
         borderColor: active ? color.primary : color.border,
       }}
     >
-      <Text style={{ fontSize: 12.5, fontWeight: "700", color: active ? "#fff" : color.textMuted }}>{label}</Text>
+      <Text style={{ fontSize: 12, fontWeight: "700", color: active ? "#fff" : color.textMuted }}>{label}</Text>
     </Pressable>
   );
 }
@@ -141,7 +167,7 @@ function buildStyles(theme: Theme) {
     title: { fontSize: 23, fontWeight: "700", color: color.text, letterSpacing: -0.4 },
     subtitle: { fontSize: 12.5, color: color.textMuted, marginTop: 4 },
     list: { padding: space.xl, gap: 10 },
-    kindRow: { flexDirection: "row", gap: 8, marginTop: space.lg },
+    kindGrid: { flexDirection: "row", flexWrap: "wrap", gap: "3.5%" as any, rowGap: 8, marginTop: space.lg, marginBottom: 4 },
     input: { backgroundColor: color.surface, borderRadius: radius.md, borderWidth: 1, borderColor: color.border, padding: 13, fontSize: 13.5, color: color.text },
     errorText: { color: color.danger, fontSize: 12.5 },
     queryButton: { backgroundColor: color.primary, borderRadius: radius.lg, padding: 14, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },

@@ -184,6 +184,15 @@ export default function DashboardScreen() {
             subtitle="Pergunte algo que cruze vários casos ao mesmo tempo"
             onPress={() => navigation.navigate("CrossCaseAi")}
           />
+          <QuickRow
+            theme={theme}
+            icon="eye-outline"
+            iconColor={color.danger}
+            tint={color.dangerTint}
+            title="Lista de vigilância"
+            subtitle="Termos de interesse cruzados com todos os casos"
+            onPress={() => navigation.navigate("Watchlist")}
+          />
         </View>
 
         <View style={styles.sectionHeaderRow}>

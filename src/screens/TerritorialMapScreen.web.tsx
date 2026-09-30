@@ -9,6 +9,7 @@ import { useTheme } from "../contexts/ThemeContext";
 import { Theme } from "../theme";
 import { STRATEGIC_SITES, STRATEGIC_KIND_META } from "../constants/strategicSites";
 import { useTerritorialMapData, MapLayer } from "../hooks/useTerritorialMapData";
+import { clusterPoints } from "../utils/clusterPoints";
 
 // react-native-maps não roda no navegador (é 100% nativo). Esta é a versão
 // web do mesmo mapa territorial, usando Leaflet + tiles OpenStreetMap/
@@ -31,6 +32,14 @@ export default function TerritorialMapScreenWeb() {
 
   const [layer, setLayer] = useState<MapLayer>("cases");
   const { loading, error, reports, flights, flightsError, monitors } = useTerritorialMapData(layer);
+
+  const clusters = useMemo(
+    () =>
+      clusterPoints(
+        reports.map((r) => ({ id: r.id, lat: r.operationLatitude as number, lng: r.operationLongitude as number }))
+      ).filter((c) => c.items.length > 1),
+    [reports]
+  );
 
   const caseIcon = useMemo(() => makeDivIcon("#1B4B8F"), []);
   const secretIcon = useMemo(() => makeDivIcon("#D92D20"), []);
@@ -133,6 +142,11 @@ export default function TerritorialMapScreenWeb() {
               <Text style={styles.sheetTitle}>Acervo de casos no mapa</Text>
               <Text style={styles.sheetCount}>{reports.length} casos</Text>
             </View>
+            {clusters.length > 0 && (
+              <Text style={styles.sourceCaption}>
+                {clusters.length} zona(s) de concentração — {clusters.map((c) => c.items.length).join(", ")} casos por zona
+              </Text>
+            )}
             {reports.length === 0 ? (
               <Text style={styles.emptyText}>Nenhum caso georreferenciado ainda.</Text>
             ) : (

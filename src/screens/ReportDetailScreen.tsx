@@ -19,6 +19,15 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../contexts/ThemeContext";
 import { Theme } from "../theme";
 import { api, getToken, Report, Evidence, ApiError } from "../api/client";
+import { RelationshipGraph } from "../components/RelationshipGraph";
+import {
+  RELIABILITY_CODES,
+  CREDIBILITY_CODES,
+  ReliabilityCode,
+  CredibilityCode,
+  admiraltyLabel,
+  admiraltyToConfidence,
+} from "../constants/admiralty";
 
 type Tab = "timeline" | "entities" | "hypotheses" | "evidence" | "tasks" | "ai" | "history" | "access";
 
@@ -635,9 +644,15 @@ function resolveEntityName(entities: any[], id: unknown): string {
   return found?.name || String(id);
 }
 
+function relationshipEndpoints(rel: any): { fromId: unknown; toId: unknown } {
+  return {
+    fromId: rel.sourceEntityId ?? rel.fromEntityId ?? rel.sourceId ?? rel.fromId ?? rel.from,
+    toId: rel.targetEntityId ?? rel.toEntityId ?? rel.targetId ?? rel.toId ?? rel.to,
+  };
+}
+
 function relationshipLabel(rel: any, entities: any[]): string {
-  const fromId = rel.sourceEntityId ?? rel.fromEntityId ?? rel.sourceId ?? rel.fromId ?? rel.from;
-  const toId = rel.targetEntityId ?? rel.toEntityId ?? rel.targetId ?? rel.toId ?? rel.to;
+  const { fromId, toId } = relationshipEndpoints(rel);
   const kind = rel.type || rel.relation || rel.label || rel.kind || "relacionado a";
   if (fromId != null && toId != null) {
     return `${resolveEntityName(entities, fromId)} — ${kind} — ${resolveEntityName(entities, toId)}`;
@@ -666,13 +681,21 @@ function EntitiesTab({
   const [type, setType] = useState(ENTITY_TYPES[0]);
   const [notes, setNotes] = useState("");
   const [confidence, setConfidence] = useState(CONFIDENCE_OPTIONS[1]);
+  const [reliability, setReliability] = useState<ReliabilityCode>("C");
+  const [credibility, setCredibility] = useState<CredibilityCode>("3");
   const [saving, setSaving] = useState(false);
 
   async function submit() {
     if (!name.trim()) return;
     setSaving(true);
     try {
-      await api.createCaseEntity(reportId, { name: name.trim(), type, notes: notes.trim(), confidence });
+      await api.createCaseEntity(reportId, {
+        name: name.trim(),
+        type,
+        notes: notes.trim(),
+        confidence,
+        source: `Admiralty ${admiraltyLabel(reliability, credibility)}`,
+      });
       setName("");
       setNotes("");
       setAdding(false);
@@ -691,6 +714,32 @@ function EntitiesTab({
         <View style={{ marginBottom: theme.space.lg, gap: 8 }}>
           <TextInputLike theme={theme} value={name} onChangeText={setName} placeholder="Nome / identificador" />
           <PillRow theme={theme} options={ENTITY_TYPES} value={type} onChange={setType} />
+
+          <Text style={{ fontSize: 10.5, fontWeight: "700", color: "#98A2B3", textTransform: "uppercase", letterSpacing: 0.5 }}>
+            Confiabilidade da fonte (Código Admiralty)
+          </Text>
+          <PillRow
+            theme={theme}
+            options={RELIABILITY_CODES.map((r) => r.code)}
+            value={reliability}
+            onChange={(v) => {
+              setReliability(v as ReliabilityCode);
+              setConfidence(admiraltyToConfidence(v as ReliabilityCode, credibility));
+            }}
+          />
+          <Text style={{ fontSize: 10.5, fontWeight: "700", color: "#98A2B3", textTransform: "uppercase", letterSpacing: 0.5 }}>
+            Credibilidade da informação
+          </Text>
+          <PillRow
+            theme={theme}
+            options={CREDIBILITY_CODES.map((c) => c.code)}
+            value={credibility}
+            onChange={(v) => {
+              setCredibility(v as CredibilityCode);
+              setConfidence(admiraltyToConfidence(reliability, v as CredibilityCode));
+            }}
+          />
+
           <PillRow theme={theme} options={CONFIDENCE_OPTIONS} value={confidence} onChange={setConfidence} />
           <TextInputLike theme={theme} value={notes} onChangeText={setNotes} placeholder="Notas (opcional)" multiline />
           <Pressable style={[stylesShared.primaryButton, saving && { opacity: 0.6 }]} disabled={saving} onPress={submit}>
@@ -712,7 +761,10 @@ function EntitiesTab({
                   </View>
                 )}
               </View>
-              <Text style={stylesShared.evidenceMeta}>{e.type}</Text>
+              <Text style={stylesShared.evidenceMeta}>
+                {e.type}
+                {e.source ? ` · ${e.source}` : ""}
+              </Text>
               {e.notes ? <Text style={stylesShared.hypothesisDesc}>{e.notes}</Text> : null}
             </View>
           ))}
@@ -724,7 +776,17 @@ function EntitiesTab({
           <Text style={{ fontSize: 11.5, fontWeight: "700", color: "#98A2B3", textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 10 }}>
             Relacionamentos
           </Text>
-          <View style={{ gap: theme.space.md }}>
+          <RelationshipGraph
+            color={color.primary}
+            nodes={entities.map((e) => ({ id: e.id, name: e.name, type: e.type }))}
+            edges={relationships
+              .map((rel) => {
+                const { fromId, toId } = relationshipEndpoints(rel);
+                return { fromId, toId, label: rel.type || rel.relation };
+              })
+              .filter((e) => entities.some((en) => en.id === e.fromId) && entities.some((en) => en.id === e.toId)) as any}
+          />
+          <View style={{ gap: theme.space.md, marginTop: theme.space.lg }}>
             {relationships.map((rel, i) => (
               <View key={rel.id || i} style={stylesShared.card}>
                 <Text style={{ fontSize: 12.5, color: "#101828", lineHeight: 18 }}>{relationshipLabel(rel, entities)}</Text>

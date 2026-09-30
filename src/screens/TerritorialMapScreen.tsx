@@ -7,6 +7,7 @@ import { useTheme } from "../contexts/ThemeContext";
 import { Theme } from "../theme";
 import { STRATEGIC_SITES, STRATEGIC_KIND_META } from "../constants/strategicSites";
 import { useTerritorialMapData, MapLayer } from "../hooks/useTerritorialMapData";
+import { clusterPoints } from "../utils/clusterPoints";
 
 // Região inicial: Bahia (mesma área usada nos mockups aprovados). O usuário
 // pode dar zoom out livremente pro Brasil inteiro / mundo.
@@ -25,6 +26,14 @@ export default function TerritorialMapScreen() {
 
   const [layer, setLayer] = useState<MapLayer>("cases");
   const { loading, error, reports, flights, flightsError, monitors } = useTerritorialMapData(layer);
+
+  const clusters = useMemo(
+    () =>
+      clusterPoints(
+        reports.map((r) => ({ id: r.id, lat: r.operationLatitude as number, lng: r.operationLongitude as number }))
+      ).filter((c) => c.items.length > 1),
+    [reports]
+  );
 
   return (
     <View style={styles.container}>
@@ -126,6 +135,11 @@ export default function TerritorialMapScreen() {
               <Text style={styles.sheetTitle}>Acervo de casos no mapa</Text>
               <Text style={styles.sheetCount}>{reports.length} casos</Text>
             </View>
+            {clusters.length > 0 && (
+              <Text style={styles.sourceCaption}>
+                {clusters.length} zona(s) de concentração — {clusters.map((c) => c.items.length).join(", ")} casos por zona
+              </Text>
+            )}
             {reports.length === 0 ? (
               <Text style={styles.emptyText}>Nenhum caso georreferenciado ainda.</Text>
             ) : (

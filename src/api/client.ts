@@ -571,6 +571,25 @@ export const api = {
     return request<Record<string, unknown>>(`/public-data/court-case?${q.toString()}`);
   },
 
+  // Rotas novas (routes/osintExtra.js, mesma base /public-data): fontes
+  // públicas adicionais, sem chave/custo — ViaCEP, WHOIS (protocolo porta
+  // 43) e Wayback Machine (archive.org).
+  async queryCep(cep: string) {
+    return request<{ cep: string; logradouro: string; bairro: string; localidade: string; uf: string }>(
+      `/public-data/cep/${cep.replace(/\D/g, "")}`
+    );
+  },
+
+  async queryWhois(domain: string) {
+    return request<{ domain: string; raw: string }>(`/public-data/whois?${new URLSearchParams({ domain })}`);
+  },
+
+  async queryWayback(url: string) {
+    return request<{ url: string; archived_snapshots?: { closest?: { url: string; timestamp: string; status: string } } }>(
+      `/public-data/wayback?${new URLSearchParams({ url })}`
+    );
+  },
+
   // ---- /security ----
   async getSecurityPosture() {
     return request<{ mfaCoverage: number; mfaTotal: number; mfaMissing: number }>(

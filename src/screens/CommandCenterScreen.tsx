@@ -1,9 +1,12 @@
-import React, { useMemo } from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator } from "react-native";
+import React, { useMemo, useState } from "react";
+import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Platform, Alert } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
+import * as Print from "expo-print";
+import * as Sharing from "expo-sharing";
 import { useTheme } from "../contexts/ThemeContext";
 import { Theme } from "../theme";
+import { api, ApiError } from "../api/client";
 import { useAllCasesIntelligence } from "../hooks/useAllCasesIntelligence";
 
 // Visão de comando: cruza o "command" (risco, fase, tarefas) de TODOS os
@@ -41,6 +44,50 @@ export default function CommandCenterScreen() {
 
   const sortedByUrgency = [...rows].sort((a, b) => (b.command?.overdueTasks ?? 0) - (a.command?.overdueTasks ?? 0));
 
+  const [generatingBriefing, setGeneratingBriefing] = useState(false);
+  const [briefing, setBriefing] = useState<string | null>(null);
+
+  async function generateBriefing() {
+    const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    const recent = reports.filter((r) => (r.updatedAt || 0) >= weekAgo);
+    const targetIds = (recent.length > 0 ? recent : reports).map((r) => r.id).slice(0, 15);
+    if (targetIds.length === 0) {
+      Alert.alert("Sem casos", "Nenhum caso disponível pra gerar briefing.");
+      return;
+    }
+    setGeneratingBriefing(true);
+    setBriefing(null);
+    try {
+      const res = await api.aiCrossCaseAssist(
+        targetIds,
+        "Gere um briefing executivo diário: liste os casos por prioridade (risco e urgência primeiro), o que mudou recentemente em cada um, e recomende as 3 próximas ações mais importantes no total."
+      );
+      setBriefing(res.text);
+    } catch (err) {
+      Alert.alert("Erro", err instanceof ApiError ? err.message : "BlindAI/Grok indisponível.");
+    } finally {
+      setGeneratingBriefing(false);
+    }
+  }
+
+  async function exportBriefingPdf() {
+    if (!briefing) return;
+    const html = `<html><body style="font-family: -apple-system, sans-serif; padding: 24px; white-space: pre-wrap;">
+      <h1>Briefing — ${new Date().toLocaleDateString("pt-BR")}</h1>
+      <p>${briefing.replace(/</g, "&lt;")}</p>
+    </body></html>`;
+    try {
+      if (Platform.OS === "web") {
+        await Print.printAsync({ html });
+        return;
+      }
+      const { uri } = await Print.printToFileAsync({ html });
+      if (await Sharing.isAvailableAsync()) await Sharing.shareAsync(uri, { mimeType: "application/pdf" });
+    } catch {
+      Alert.alert("Erro ao exportar", "Não foi possível gerar o PDF.");
+    }
+  }
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -64,6 +111,26 @@ export default function CommandCenterScreen() {
             <StatBox theme={theme} value={totals.highRisk} label="Casos de risco alto" danger={totals.highRisk > 0} />
             <StatBox theme={theme} value={totals.secret} label="Casos SECRETO" />
           </View>
+
+          <Pressable style={[styles.briefingButton, generatingBriefing && { opacity: 0.6 }]} disabled={generatingBriefing} onPress={generateBriefing}>
+            {generatingBriefing ? <ActivityIndicator color="#fff" /> : (
+              <>
+                <Ionicons name="newspaper-outline" size={15} color="#fff" />
+                <Text style={styles.briefingButtonText}>Gerar briefing (últimos 7 dias)</Text>
+              </>
+            )}
+          </Pressable>
+          {briefing && (
+            <View style={styles.briefingCard}>
+              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                <Text style={styles.phaseLabel}>Briefing gerado</Text>
+                <Pressable onPress={exportBriefingPdf}>
+                  <Ionicons name="download-outline" size={16} color={color.primary} />
+                </Pressable>
+              </View>
+              <Text style={{ fontSize: 13, color: color.text, lineHeight: 20 }}>{briefing}</Text>
+            </View>
+          )}
 
           <Text style={styles.sectionLabel}>Casos por fase</Text>
           <View style={[styles.card, { marginBottom: theme.space.xxl }]}>
@@ -124,6 +191,9 @@ function buildStyles(theme: Theme) {
     phaseRow: { flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 10, paddingVertical: 9 },
     phaseLabel: { fontSize: 12.5, color: color.text, fontWeight: "600" },
     phaseValue: { fontSize: 12.5, color: color.textMuted },
+    briefingButton: { backgroundColor: color.primary, borderRadius: radius.lg, padding: 13, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: space.md },
+    briefingButtonText: { color: "#fff", fontWeight: "700", fontSize: 13.5 },
+    briefingCard: { backgroundColor: color.surface, borderRadius: radius.xl, padding: 14, marginBottom: space.xxl, ...theme.shadow.card },
     caseCard: { backgroundColor: color.surface, borderRadius: radius.lg, padding: 14, flexDirection: "row", alignItems: "center", gap: 10, ...theme.shadow.card },
     caseTitle: { fontSize: 13.5, fontWeight: "600", color: color.text },
     caseMeta: { fontSize: 11, color: color.textFaint, marginTop: 3 },
