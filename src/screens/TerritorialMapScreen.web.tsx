@@ -2,13 +2,13 @@ import React, { useMemo, useState } from "react";
 import { View, Text, StyleSheet, Pressable, ActivityIndicator } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
-import { MapContainer, TileLayer, Marker, Popup, Polyline } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, Polyline, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { useTheme } from "../contexts/ThemeContext";
 import { Theme } from "../theme";
 import { STRATEGIC_SITES, STRATEGIC_KIND_META, STRATEGIC_ROUTES } from "../constants/strategicSites";
-import { useTerritorialMapData, MapLayer } from "../hooks/useTerritorialMapData";
+import { useTerritorialMapData, MapLayer, MapBounds } from "../hooks/useTerritorialMapData";
 import { clusterPoints } from "../utils/clusterPoints";
 
 // react-native-maps não roda no navegador (é 100% nativo). Esta é a versão
@@ -24,6 +24,21 @@ function makeDivIcon(color: string, size = 22) {
   });
 }
 
+const INITIAL_BOUNDS: MapBounds = { lamin: -16.5, lomin: -45.7, lamax: -8.5, lomax: -37.7 };
+
+// Componente sem render próprio, só escuta o fim do movimento/zoom do mapa
+// e reporta o bbox visível pra cima — mesma correção do lado nativo, o
+// bbox de voos precisa seguir a área real na tela, não ficar fixo.
+function BoundsWatcher({ onChange }: { onChange: (b: MapBounds) => void }) {
+  useMapEvents({
+    moveend: (e) => {
+      const b = e.target.getBounds();
+      onChange({ lamin: b.getSouth(), lomin: b.getWest(), lamax: b.getNorth(), lomax: b.getEast() });
+    },
+  });
+  return null;
+}
+
 export default function TerritorialMapScreenWeb() {
   const theme = useTheme();
   const { color } = theme;
@@ -32,7 +47,8 @@ export default function TerritorialMapScreenWeb() {
 
   const [layer, setLayer] = useState<MapLayer>("cases");
   const [sheetExpanded, setSheetExpanded] = useState(true);
-  const { loading, error, reports, flights, flightsError, monitors, offline, cachedAt } = useTerritorialMapData(layer);
+  const [bounds, setBounds] = useState<MapBounds>(INITIAL_BOUNDS);
+  const { loading, error, reports, flights, flightsError, monitors, offline, cachedAt } = useTerritorialMapData(layer, bounds);
 
   const clusters = useMemo(
     () =>
@@ -59,6 +75,7 @@ export default function TerritorialMapScreenWeb() {
     <View style={styles.container}>
       <View style={StyleSheet.absoluteFill}>
         <MapContainer center={[-12.5, -41.7]} zoom={6} style={{ width: "100%", height: "100%" }}>
+          <BoundsWatcher onChange={setBounds} />
           <TileLayer
             attribution='&copy; OpenTopoMap, OpenStreetMap contributors'
             url="https://a.tile.opentopomap.org/{z}/{x}/{y}.png"
@@ -179,7 +196,7 @@ export default function TerritorialMapScreenWeb() {
             <View style={styles.sheetHeader}>
               <Text style={styles.sheetTitle}>Cobertura de voo</Text>
             </View>
-            <Text style={styles.sourceCaption}>fonte: OpenSky Network, via /public-data/flights</Text>
+            <Text style={styles.sourceCaption}>fonte: OpenSky Network — mostra voos só na área visível do mapa, arraste/dê zoom pra outra região</Text>
             {flightsError && <Text style={styles.errorText}>{flightsError}</Text>}
             {flights.length === 0 ? (
               <Text style={styles.emptyText}>Nenhuma aeronave na área no momento.</Text>

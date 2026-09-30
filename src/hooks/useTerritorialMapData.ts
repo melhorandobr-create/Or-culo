@@ -21,7 +21,18 @@ function isValidCoordinate(lat: unknown, lng: unknown): boolean {
   return Number.isFinite(la) && Number.isFinite(lo) && la >= -90 && la <= 90 && lo >= -180 && lo <= 180;
 }
 
-export function useTerritorialMapData(layer: MapLayer) {
+export interface MapBounds {
+  lamin: number;
+  lomin: number;
+  lamax: number;
+  lomax: number;
+}
+
+// Antes o bbox de voos era fixo (Nordeste do Brasil), então mudar de área
+// no mapa — inclusive pra São Paulo, bem fora dessa caixa — nunca trazia
+// nada, mesmo com tráfego aéreo real na região visível. O bbox agora
+// acompanha a área que está de fato na tela.
+export function useTerritorialMapData(layer: MapLayer, bounds: MapBounds) {
   const { loading, error, reports: allReports, offline, cachedAt } = useCases();
   const reports = useMemo(
     () =>
@@ -42,13 +53,14 @@ export function useTerritorialMapData(layer: MapLayer) {
   const loadFlights = useCallback(async () => {
     setFlightsError(null);
     try {
-      const res = await api.getFlights({ lamin: -20, lomin: -48, lamax: -6.5, lomax: -35 });
+      const res = await api.getFlights(bounds);
       setFlights(res.flights || []);
     } catch (err) {
       setFlights([]);
       setFlightsError(err instanceof ApiError ? err.message : "Não foi possível carregar o tráfego aéreo.");
     }
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bounds.lamin, bounds.lomin, bounds.lamax, bounds.lomax]);
 
   useEffect(() => {
     if (layer === "flights") loadFlights();

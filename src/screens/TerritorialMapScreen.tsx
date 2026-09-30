@@ -6,7 +6,7 @@ import MapView, { UrlTile, Marker, Polyline, PROVIDER_DEFAULT } from "react-nati
 import { useTheme } from "../contexts/ThemeContext";
 import { Theme } from "../theme";
 import { STRATEGIC_SITES, STRATEGIC_KIND_META, STRATEGIC_ROUTES } from "../constants/strategicSites";
-import { useTerritorialMapData, MapLayer } from "../hooks/useTerritorialMapData";
+import { useTerritorialMapData, MapLayer, MapBounds } from "../hooks/useTerritorialMapData";
 import { clusterPoints } from "../utils/clusterPoints";
 
 // Região inicial: Bahia (mesma área usada nos mockups aprovados). O usuário
@@ -18,6 +18,15 @@ const INITIAL_REGION = {
   longitudeDelta: 8,
 };
 
+function regionToBounds(region: { latitude: number; longitude: number; latitudeDelta: number; longitudeDelta: number }): MapBounds {
+  return {
+    lamin: region.latitude - region.latitudeDelta / 2,
+    lamax: region.latitude + region.latitudeDelta / 2,
+    lomin: region.longitude - region.longitudeDelta / 2,
+    lomax: region.longitude + region.longitudeDelta / 2,
+  };
+}
+
 export default function TerritorialMapScreen() {
   const theme = useTheme();
   const { color } = theme;
@@ -26,7 +35,12 @@ export default function TerritorialMapScreen() {
 
   const [layer, setLayer] = useState<MapLayer>("cases");
   const [sheetExpanded, setSheetExpanded] = useState(true);
-  const { loading, error, reports, flights, flightsError, monitors, offline, cachedAt } = useTerritorialMapData(layer);
+  // Bbox de voos segue a área visível do mapa — antes era fixo no Nordeste,
+  // então panorâmicas pra qualquer outra região (SP incluso) nunca traziam
+  // tráfego aéreo nenhum, mesmo havendo voos reais na tela.
+  const [region, setRegion] = useState(INITIAL_REGION);
+  const bounds = useMemo(() => regionToBounds(region), [region]);
+  const { loading, error, reports, flights, flightsError, monitors, offline, cachedAt } = useTerritorialMapData(layer, bounds);
 
   const clusters = useMemo(
     () =>
@@ -42,6 +56,7 @@ export default function TerritorialMapScreen() {
         style={StyleSheet.absoluteFill}
         provider={PROVIDER_DEFAULT}
         initialRegion={INITIAL_REGION}
+        onRegionChangeComplete={setRegion}
         mapType={Platform.OS === "android" ? "none" : "standard"}
       >
         {Platform.OS === "android" && (
@@ -173,7 +188,7 @@ export default function TerritorialMapScreen() {
                 <View style={styles.sheetHeader}>
                   <Text style={styles.sheetTitle}>Cobertura de voo</Text>
                 </View>
-                <Text style={styles.sourceCaption}>fonte: OpenSky Network, via /public-data/flights</Text>
+                <Text style={styles.sourceCaption}>fonte: OpenSky Network — mostra voos só na área visível do mapa, arraste/dê zoom pra outra região</Text>
                 {flightsError && <Text style={styles.errorText}>{flightsError}</Text>}
                 {flights.length === 0 ? (
                   <Text style={styles.emptyText}>Nenhuma aeronave na área no momento.</Text>
