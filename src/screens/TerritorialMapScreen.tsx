@@ -1,11 +1,11 @@
 import React, { useMemo, useState } from "react";
-import { View, Text, StyleSheet, Pressable, ActivityIndicator, Platform } from "react-native";
+import { View, Text, StyleSheet, Pressable, ActivityIndicator, Platform, ScrollView } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
-import MapView, { UrlTile, Marker, PROVIDER_DEFAULT } from "react-native-maps";
+import MapView, { UrlTile, Marker, Polyline, PROVIDER_DEFAULT } from "react-native-maps";
 import { useTheme } from "../contexts/ThemeContext";
 import { Theme } from "../theme";
-import { STRATEGIC_SITES, STRATEGIC_KIND_META } from "../constants/strategicSites";
+import { STRATEGIC_SITES, STRATEGIC_KIND_META, STRATEGIC_ROUTES } from "../constants/strategicSites";
 import { useTerritorialMapData, MapLayer } from "../hooks/useTerritorialMapData";
 import { clusterPoints } from "../utils/clusterPoints";
 
@@ -25,6 +25,7 @@ export default function TerritorialMapScreen() {
   const navigation = useNavigation<any>();
 
   const [layer, setLayer] = useState<MapLayer>("cases");
+  const [sheetExpanded, setSheetExpanded] = useState(true);
   const { loading, error, reports, flights, flightsError, monitors, offline, cachedAt } = useTerritorialMapData(layer);
 
   const clusters = useMemo(
@@ -94,6 +95,11 @@ export default function TerritorialMapScreen() {
               </Marker>
             );
           })}
+
+        {layer === "strategic" &&
+          STRATEGIC_ROUTES.map((r) => (
+            <Polyline key={r.id} coordinates={r.points} strokeColor="#B45309" strokeWidth={2.5} lineDashPattern={[6, 4]} />
+          ))}
       </MapView>
 
       {/* Header sobreposto */}
@@ -108,12 +114,12 @@ export default function TerritorialMapScreen() {
           </View>
         </View>
 
-        <View style={styles.layerRow}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.layerRow}>
           <LayerChip theme={theme} active={layer === "cases"} label="Casos ativos" onPress={() => setLayer("cases")} />
           <LayerChip theme={theme} active={layer === "sources"} label="Fontes monitoradas" onPress={() => setLayer("sources")} />
           <LayerChip theme={theme} active={layer === "flights"} label="Voos ao vivo" icon="airplane" onPress={() => setLayer("flights")} />
           <LayerChip theme={theme} active={layer === "strategic"} label="Infraestrutura estratégica" icon="business" onPress={() => setLayer("strategic")} />
-        </View>
+        </ScrollView>
       </View>
 
       {(error || offline) && (
@@ -130,93 +136,113 @@ export default function TerritorialMapScreen() {
         </View>
       )}
 
-      {/* Painel inferior */}
-      <View style={styles.bottomSheet}>
-        <View style={styles.grabber} />
-        {layer === "cases" ? (
-          <>
-            <View style={styles.sheetHeader}>
-              <Text style={styles.sheetTitle}>Acervo de casos no mapa</Text>
-              <Text style={styles.sheetCount}>{reports.length} casos</Text>
-            </View>
-            {clusters.length > 0 && (
-              <Text style={styles.sourceCaption}>
-                {clusters.length} zona(s) de concentração — {clusters.map((c) => c.items.length).join(", ")} casos por zona
-              </Text>
-            )}
-            {reports.length === 0 ? (
-              <Text style={styles.emptyText}>Nenhum caso georreferenciado ainda.</Text>
-            ) : (
-              reports.slice(0, 6).map((r: any) => (
-                <Pressable key={r.id} style={styles.caseRow} onPress={() => navigation.navigate("ReportDetail", { reportId: r.id })}>
-                  <View style={[styles.dot, { backgroundColor: r.classification === "SECRETO" ? color.danger : color.primary }]} />
-                  <Text style={styles.caseRowTitle} numberOfLines={1}>{r.title || r.displayName}</Text>
-                  <Ionicons name="chevron-forward" size={14} color={color.textFaint} />
-                </Pressable>
-              ))
-            )}
-          </>
-        ) : layer === "flights" ? (
-          <>
-            <View style={styles.sheetHeader}>
-              <Text style={styles.sheetTitle}>Cobertura de voo</Text>
-            </View>
-            <Text style={styles.sourceCaption}>fonte: OpenSky Network, via /public-data/flights</Text>
-            {flightsError && <Text style={styles.errorText}>{flightsError}</Text>}
-            {flights.length === 0 ? (
-              <Text style={styles.emptyText}>Nenhuma aeronave na área no momento.</Text>
-            ) : (
-              flights.slice(0, 6).map((f: any) => (
-                <View key={f.icao24} style={styles.flightRow}>
-                  <Text style={styles.flightCallsign}>{f.callsign || f.icao24}</Text>
-                  <Text style={styles.flightMeta}>{f.origin_country}</Text>
+      {/* Painel inferior — colapsável (toca no puxador) e com rolagem
+          própria, pra não travar o mapa embaixo quando a lista é grande. */}
+      <View style={[styles.bottomSheet, !sheetExpanded && styles.bottomSheetCollapsed]}>
+        <Pressable style={styles.grabberRow} onPress={() => setSheetExpanded((v) => !v)}>
+          <View style={styles.grabber} />
+          <Ionicons name={sheetExpanded ? "chevron-down" : "chevron-up"} size={14} color={color.textFaint} />
+        </Pressable>
+        {!sheetExpanded ? null : (
+          <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={false}>
+            {layer === "cases" ? (
+              <>
+                <View style={styles.sheetHeader}>
+                  <Text style={styles.sheetTitle}>Acervo de casos no mapa</Text>
+                  <Text style={styles.sheetCount}>{reports.length} casos</Text>
                 </View>
-              ))
-            )}
-          </>
-        ) : layer === "sources" ? (
-          <>
-            <View style={styles.sheetHeader}>
-              <Text style={styles.sheetTitle}>Fontes monitoradas</Text>
-              <Text style={styles.sheetCount}>{monitors.length} fontes</Text>
-            </View>
-            <Text style={styles.sourceCaption}>fontes não têm coordenada própria — exibidas só na lista</Text>
-            {monitors.length === 0 ? (
-              <Text style={styles.emptyText}>Nenhuma fonte monitorada ainda.</Text>
-            ) : (
-              monitors.slice(0, 8).map((m) => (
-                <View key={m.id} style={styles.caseRow}>
-                  <View style={[styles.dot, { backgroundColor: color.primary }]} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.caseRowTitle} numberOfLines={1}>{m.query}</Text>
-                    <Text style={styles.flightMeta}>{m.kind}{m.tribunal ? ` · ${m.tribunal}` : ""}</Text>
+                {clusters.length > 0 && (
+                  <Text style={styles.sourceCaption}>
+                    {clusters.length} zona(s) de concentração — {clusters.map((c) => c.items.length).join(", ")} casos por zona
+                  </Text>
+                )}
+                {reports.length === 0 ? (
+                  <Text style={styles.emptyText}>Nenhum caso georreferenciado ainda.</Text>
+                ) : (
+                  reports.map((r: any) => (
+                    <Pressable key={r.id} style={styles.caseRow} onPress={() => navigation.navigate("ReportDetail", { reportId: r.id })}>
+                      <View style={[styles.dot, { backgroundColor: r.classification === "SECRETO" ? color.danger : color.primary }]} />
+                      <Text style={styles.caseRowTitle} numberOfLines={1}>{r.title || r.displayName}</Text>
+                      <Ionicons name="chevron-forward" size={14} color={color.textFaint} />
+                    </Pressable>
+                  ))
+                )}
+              </>
+            ) : layer === "flights" ? (
+              <>
+                <View style={styles.sheetHeader}>
+                  <Text style={styles.sheetTitle}>Cobertura de voo</Text>
+                </View>
+                <Text style={styles.sourceCaption}>fonte: OpenSky Network, via /public-data/flights</Text>
+                {flightsError && <Text style={styles.errorText}>{flightsError}</Text>}
+                {flights.length === 0 ? (
+                  <Text style={styles.emptyText}>Nenhuma aeronave na área no momento.</Text>
+                ) : (
+                  flights.map((f: any) => (
+                    <View key={f.icao24} style={styles.flightRow}>
+                      <Text style={styles.flightCallsign}>{f.callsign || f.icao24}</Text>
+                      <Text style={styles.flightMeta}>{f.origin_country}</Text>
+                    </View>
+                  ))
+                )}
+              </>
+            ) : layer === "sources" ? (
+              <>
+                <View style={styles.sheetHeader}>
+                  <Text style={styles.sheetTitle}>Fontes monitoradas</Text>
+                  <Text style={styles.sheetCount}>{monitors.length} fontes</Text>
+                </View>
+                <Text style={styles.sourceCaption}>fontes não têm coordenada própria — exibidas só na lista</Text>
+                {monitors.length === 0 ? (
+                  <Text style={styles.emptyText}>Nenhuma fonte monitorada ainda.</Text>
+                ) : (
+                  monitors.map((m) => (
+                    <View key={m.id} style={styles.caseRow}>
+                      <View style={[styles.dot, { backgroundColor: color.primary }]} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.caseRowTitle} numberOfLines={1}>{m.query}</Text>
+                        <Text style={styles.flightMeta}>{m.kind}{m.tribunal ? ` · ${m.tribunal}` : ""}</Text>
+                      </View>
+                    </View>
+                  ))
+                )}
+              </>
+            ) : layer === "strategic" ? (
+              <>
+                <View style={styles.sheetHeader}>
+                  <Text style={styles.sheetTitle}>Infraestrutura estratégica</Text>
+                  <Text style={styles.sheetCount}>{STRATEGIC_SITES.length} locais + {STRATEGIC_ROUTES.length} rodovias</Text>
+                </View>
+                <Text style={styles.sourceCaption}>
+                  informação pública — nuclear, hidrelétricas, base de lançamento, aeroportos, PF e postos de fronteira
+                </Text>
+                {STRATEGIC_SITES.map((s) => {
+                  const meta = STRATEGIC_KIND_META[s.kind];
+                  return (
+                    <View key={s.id} style={styles.caseRow}>
+                      <View style={[styles.dot, { backgroundColor: meta.color }]} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.caseRowTitle} numberOfLines={1}>{s.name}</Text>
+                        <Text style={styles.flightMeta}>{meta.label} · {s.state}</Text>
+                      </View>
+                    </View>
+                  );
+                })}
+                <Text style={[styles.sourceCaption, { marginTop: 6 }]}>Rodovias federais (corredores aproximados)</Text>
+                {STRATEGIC_ROUTES.map((r) => (
+                  <View key={r.id} style={styles.caseRow}>
+                    <View style={[styles.dot, { backgroundColor: "#B45309" }]} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.caseRowTitle} numberOfLines={1}>{r.name}</Text>
+                      <Text style={styles.flightMeta} numberOfLines={1}>{r.description}</Text>
+                    </View>
                   </View>
-                </View>
-              ))
+                ))}
+              </>
+            ) : (
+              <Text style={styles.emptyText}>Selecione um monitoramento pra ver detalhes.</Text>
             )}
-          </>
-        ) : layer === "strategic" ? (
-          <>
-            <View style={styles.sheetHeader}>
-              <Text style={styles.sheetTitle}>Infraestrutura estratégica</Text>
-              <Text style={styles.sheetCount}>{STRATEGIC_SITES.length} locais</Text>
-            </View>
-            <Text style={styles.sourceCaption}>informação pública — INB, usinas nucleares, hidrelétricas, base de lançamento</Text>
-            {STRATEGIC_SITES.map((s) => {
-              const meta = STRATEGIC_KIND_META[s.kind];
-              return (
-                <View key={s.id} style={styles.caseRow}>
-                  <View style={[styles.dot, { backgroundColor: meta.color }]} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.caseRowTitle} numberOfLines={1}>{s.name}</Text>
-                    <Text style={styles.flightMeta}>{meta.label} · {s.state}</Text>
-                  </View>
-                </View>
-              );
-            })}
-          </>
-        ) : (
-          <Text style={styles.emptyText}>Selecione um monitoramento pra ver detalhes.</Text>
+          </ScrollView>
         )}
       </View>
     </View>
@@ -278,11 +304,13 @@ function buildStyles(theme: Theme) {
       borderTopLeftRadius: 22,
       borderTopRightRadius: 22,
       paddingHorizontal: space.xl,
-      paddingTop: 12,
+      paddingTop: 10,
       paddingBottom: 24,
-      maxHeight: 320,
+      maxHeight: 420,
     },
-    grabber: { width: 36, height: 4, backgroundColor: color.border, borderRadius: 2, alignSelf: "center", marginBottom: 14 },
+    bottomSheetCollapsed: { maxHeight: 34, paddingBottom: 10, overflow: "hidden" },
+    grabberRow: { alignItems: "center", paddingVertical: 6, gap: 4 },
+    grabber: { width: 36, height: 4, backgroundColor: color.border, borderRadius: 2 },
     sheetHeader: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", marginBottom: 12 },
     sheetTitle: { fontSize: 16, fontWeight: "700", color: color.text, letterSpacing: -0.2 },
     sheetCount: { fontSize: 12, color: color.textFaint },

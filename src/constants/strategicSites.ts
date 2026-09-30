@@ -1,7 +1,14 @@
 // Infraestrutura estratégica nacional — instalações públicas e conhecidas
 // (não são dados sigilosos; coordenadas aproximadas de domínio público,
 // equivalentes às exibidas em mapas públicos como Google Maps/Wikipedia).
-export type StrategicSiteKind = "nuclear" | "hydro" | "aerospace" | "naval";
+export type StrategicSiteKind =
+  | "nuclear"
+  | "hydro"
+  | "aerospace"
+  | "naval"
+  | "airport"
+  | "federal_police"
+  | "border_post";
 
 export interface StrategicSite {
   id: string;
@@ -14,6 +21,7 @@ export interface StrategicSite {
 }
 
 export const STRATEGIC_SITES: StrategicSite[] = [
+  // --- Nuclear ---
   {
     id: "inb-caetite",
     name: "INB Caetité — Unidade de Concentrado de Urânio",
@@ -41,6 +49,7 @@ export const STRATEGIC_SITES: StrategicSite[] = [
     longitude: -44.4547,
     description: "Usinas nucleares de Angra dos Reis, Praia de Itaorna.",
   },
+  // --- Naval/Defesa ---
   {
     id: "aramar",
     name: "CTMSP Aramar",
@@ -50,6 +59,34 @@ export const STRATEGIC_SITES: StrategicSite[] = [
     longitude: -47.6122,
     description: "Centro Tecnológico da Marinha — programa do submarino nuclear brasileiro.",
   },
+  {
+    id: "base-naval-rio",
+    name: "Base Naval do Rio de Janeiro",
+    kind: "naval",
+    state: "RJ",
+    latitude: -22.8967,
+    longitude: -43.1631,
+    description: "Principal base da Marinha do Brasil, Ilha das Cobras.",
+  },
+  {
+    id: "arsenal-marinha-ilha-mocangue",
+    name: "Base Naval de Aratu",
+    kind: "naval",
+    state: "BA",
+    latitude: -12.7889,
+    longitude: -38.4931,
+    description: "Base naval e estaleiro da Marinha na Baía de Todos os Santos.",
+  },
+  {
+    id: "base-aerea-anapolis",
+    name: "Base Aérea de Anápolis",
+    kind: "naval",
+    state: "GO",
+    latitude: -16.2294,
+    longitude: -48.9628,
+    description: "Principal base de caça da Força Aérea Brasileira (esquadrões de F-5/Gripen).",
+  },
+  // --- Hidrelétricas ---
   {
     id: "itaipu",
     name: "Usina Hidrelétrica de Itaipu",
@@ -78,6 +115,16 @@ export const STRATEGIC_SITES: StrategicSite[] = [
     description: "Complexo hidrelétrico no rio Xingu.",
   },
   {
+    id: "sobradinho",
+    name: "Usina Hidrelétrica de Sobradinho",
+    kind: "hydro",
+    state: "BA",
+    latitude: -9.4322,
+    longitude: -40.8267,
+    description: "Grande reservatório do rio São Francisco, abastece o semiárido nordestino.",
+  },
+  // --- Aeroespacial ---
+  {
     id: "alcantara",
     name: "Centro de Lançamento de Alcântara",
     kind: "aerospace",
@@ -86,6 +133,279 @@ export const STRATEGIC_SITES: StrategicSite[] = [
     longitude: -44.3959,
     description: "Base de lançamento de foguetes e satélites da Força Aérea Brasileira.",
   },
+  {
+    id: "clbi-barreira-do-inferno",
+    name: "Centro de Lançamento da Barreira do Inferno",
+    kind: "aerospace",
+    state: "RN",
+    latitude: -5.9169,
+    longitude: -35.1594,
+    description: "Primeiro centro de lançamento de foguetes do Brasil, Parnamirim.",
+  },
+  // --- Aeroportos internacionais/estratégicos ---
+  {
+    id: "aero-bsb",
+    name: "Aeroporto Internacional de Brasília (BSB)",
+    kind: "airport",
+    state: "DF",
+    latitude: -15.8697,
+    longitude: -47.9172,
+    description: "Principal hub da capital federal.",
+  },
+  {
+    id: "aero-gru",
+    name: "Aeroporto Internacional de Guarulhos (GRU)",
+    kind: "airport",
+    state: "SP",
+    latitude: -23.4356,
+    longitude: -46.4731,
+    description: "Maior aeroporto do Brasil em movimento de passageiros e cargas.",
+  },
+  {
+    id: "aero-cgh",
+    name: "Aeroporto de Congonhas (CGH)",
+    kind: "airport",
+    state: "SP",
+    latitude: -23.6261,
+    longitude: -46.6564,
+    description: "Principal ponte aérea doméstica, zona urbana de São Paulo.",
+  },
+  {
+    id: "aero-gig",
+    name: "Aeroporto Internacional do Galeão (GIG)",
+    kind: "airport",
+    state: "RJ",
+    latitude: -22.8099,
+    longitude: -43.2505,
+    description: "Principal aeroporto internacional do Rio de Janeiro.",
+  },
+  {
+    id: "aero-ssa",
+    name: "Aeroporto Internacional de Salvador (SSA)",
+    kind: "airport",
+    state: "BA",
+    latitude: -12.9086,
+    longitude: -38.3225,
+    description: "Principal hub aéreo do Nordeste soteropolitano.",
+  },
+  {
+    id: "aero-rec",
+    name: "Aeroporto Internacional do Recife (REC)",
+    kind: "airport",
+    state: "PE",
+    latitude: -8.1264,
+    longitude: -34.9236,
+    description: "Principal hub aéreo do Nordeste.",
+  },
+  {
+    id: "aero-for",
+    name: "Aeroporto Internacional de Fortaleza (FOR)",
+    kind: "airport",
+    state: "CE",
+    latitude: -3.7761,
+    longitude: -38.5326,
+    description: "Principal porta de entrada aérea do Ceará.",
+  },
+  {
+    id: "aero-bel",
+    name: "Aeroporto Internacional de Belém (BEL)",
+    kind: "airport",
+    state: "PA",
+    latitude: -1.3792,
+    longitude: -48.4763,
+    description: "Principal porta de entrada aérea da Amazônia oriental.",
+  },
+  {
+    id: "aero-mao",
+    name: "Aeroporto Internacional de Manaus (MAO)",
+    kind: "airport",
+    state: "AM",
+    latitude: -3.0386,
+    longitude: -60.0497,
+    description: "Principal hub aéreo da Amazônia ocidental, zona franca.",
+  },
+  {
+    id: "aero-poa",
+    name: "Aeroporto Internacional de Porto Alegre (POA)",
+    kind: "airport",
+    state: "RS",
+    latitude: -29.9939,
+    longitude: -51.1714,
+    description: "Principal hub aéreo do extremo sul do Brasil.",
+  },
+  {
+    id: "aero-cwb",
+    name: "Aeroporto Internacional de Curitiba (CWB)",
+    kind: "airport",
+    state: "PR",
+    latitude: -25.5285,
+    longitude: -49.1758,
+    description: "Principal hub aéreo do sul do Brasil, São José dos Pinhais.",
+  },
+  {
+    id: "aero-igu",
+    name: "Aeroporto Internacional de Foz do Iguaçu (IGU)",
+    kind: "airport",
+    state: "PR",
+    latitude: -25.6002,
+    longitude: -54.4854,
+    description: "Tríplice fronteira Brasil-Argentina-Paraguai.",
+  },
+  {
+    id: "aero-bvb",
+    name: "Aeroporto Internacional de Boa Vista (BVB)",
+    kind: "airport",
+    state: "RR",
+    latitude: 2.8413,
+    longitude: -60.69,
+    description: "Porta de entrada aérea da fronteira norte, próxima à Venezuela.",
+  },
+  // --- Delegacias/Superintendências da Polícia Federal (sedes) ---
+  {
+    id: "pf-sr-sp",
+    name: "Superintendência da PF em São Paulo",
+    kind: "federal_police",
+    state: "SP",
+    latitude: -23.5558,
+    longitude: -46.635,
+    description: "Sede da Polícia Federal no estado de São Paulo.",
+  },
+  {
+    id: "pf-sr-rj",
+    name: "Superintendência da PF no Rio de Janeiro",
+    kind: "federal_police",
+    state: "RJ",
+    latitude: -22.8934,
+    longitude: -43.2412,
+    description: "Sede da Polícia Federal no estado do Rio de Janeiro, Ilha do Governador.",
+  },
+  {
+    id: "pf-sr-df",
+    name: "Superintendência da PF no Distrito Federal",
+    kind: "federal_police",
+    state: "DF",
+    latitude: -15.8064,
+    longitude: -47.8952,
+    description: "Sede da Polícia Federal na capital federal.",
+  },
+  {
+    id: "pf-sr-ba",
+    name: "Superintendência da PF na Bahia",
+    kind: "federal_police",
+    state: "BA",
+    latitude: -12.9822,
+    longitude: -38.4661,
+    description: "Sede da Polícia Federal no estado da Bahia, Salvador.",
+  },
+  {
+    id: "pf-sr-pe",
+    name: "Superintendência da PF em Pernambuco",
+    kind: "federal_police",
+    state: "PE",
+    latitude: -8.0578,
+    longitude: -34.8829,
+    description: "Sede da Polícia Federal no estado de Pernambuco, Recife.",
+  },
+  {
+    id: "pf-sr-am",
+    name: "Superintendência da PF no Amazonas",
+    kind: "federal_police",
+    state: "AM",
+    latitude: -3.1019,
+    longitude: -60.0217,
+    description: "Sede da Polícia Federal no estado do Amazonas, Manaus.",
+  },
+  {
+    id: "pf-sr-rs",
+    name: "Superintendência da PF no Rio Grande do Sul",
+    kind: "federal_police",
+    state: "RS",
+    latitude: -30.0331,
+    longitude: -51.23,
+    description: "Sede da Polícia Federal no estado do Rio Grande do Sul, Porto Alegre.",
+  },
+  {
+    id: "pf-sr-pr",
+    name: "Superintendência da PF no Paraná",
+    kind: "federal_police",
+    state: "PR",
+    latitude: -25.4483,
+    longitude: -49.28,
+    description: "Sede da Polícia Federal no estado do Paraná, Curitiba.",
+  },
+  {
+    id: "pf-sr-mg",
+    name: "Superintendência da PF em Minas Gerais",
+    kind: "federal_police",
+    state: "MG",
+    latitude: -19.9167,
+    longitude: -43.9333,
+    description: "Sede da Polícia Federal no estado de Minas Gerais, Belo Horizonte.",
+  },
+  {
+    id: "pf-sr-ce",
+    name: "Superintendência da PF no Ceará",
+    kind: "federal_police",
+    state: "CE",
+    latitude: -3.7827,
+    longitude: -38.5388,
+    description: "Sede da Polícia Federal no estado do Ceará, Fortaleza.",
+  },
+  // --- Postos de fronteira (delegacias e controle migratório) ---
+  {
+    id: "pf-foz-iguacu",
+    name: "Delegacia da PF — Foz do Iguaçu (fronteira tríplice)",
+    kind: "border_post",
+    state: "PR",
+    latitude: -25.5478,
+    longitude: -54.5882,
+    description: "Controle migratório na fronteira Brasil-Argentina-Paraguai, Ponte da Amizade.",
+  },
+  {
+    id: "pf-uruguaiana",
+    name: "Delegacia da PF — Uruguaiana (fronteira com Argentina)",
+    kind: "border_post",
+    state: "RS",
+    latitude: -29.7546,
+    longitude: -57.0864,
+    description: "Controle migratório e aduaneiro, Ponte Internacional da Concórdia.",
+  },
+  {
+    id: "pf-corumba",
+    name: "Delegacia da PF — Corumbá (fronteira com Bolívia)",
+    kind: "border_post",
+    state: "MS",
+    latitude: -19.0078,
+    longitude: -57.6547,
+    description: "Controle migratório na fronteira com a Bolívia.",
+  },
+  {
+    id: "pf-tabatinga",
+    name: "Delegacia da PF — Tabatinga (fronteira com Colômbia/Peru)",
+    kind: "border_post",
+    state: "AM",
+    latitude: -4.2517,
+    longitude: -69.9386,
+    description: "Tríplice fronteira amazônica, Brasil-Colômbia-Peru.",
+  },
+  {
+    id: "pf-pacaraima",
+    name: "Delegacia da PF — Pacaraima (fronteira com Venezuela)",
+    kind: "border_post",
+    state: "RR",
+    latitude: 4.4394,
+    longitude: -61.1514,
+    description: "Principal ponto de entrada terrestre da fronteira com a Venezuela.",
+  },
+  {
+    id: "pf-santana-do-livramento",
+    name: "Delegacia da PF — Santana do Livramento (fronteira com Uruguai)",
+    kind: "border_post",
+    state: "RS",
+    latitude: -30.8908,
+    longitude: -55.5328,
+    description: "Cidades-gêmeas Livramento/Rivera, fronteira seca com o Uruguai.",
+  },
 ];
 
 export const STRATEGIC_KIND_META: Record<StrategicSiteKind, { label: string; icon: string; color: string }> = {
@@ -93,4 +413,98 @@ export const STRATEGIC_KIND_META: Record<StrategicSiteKind, { label: string; ico
   hydro: { label: "Hidrelétrica", icon: "water-outline", color: "#1B4B8F" },
   aerospace: { label: "Aeroespacial", icon: "rocket-outline", color: "#5B21B6" },
   naval: { label: "Naval/Defesa", icon: "boat-outline", color: "#12813D" },
+  airport: { label: "Aeroporto", icon: "airplane-outline", color: "#0369A1" },
+  federal_police: { label: "Polícia Federal", icon: "shield-outline", color: "#1E293B" },
+  border_post: { label: "Posto de fronteira", icon: "flag-outline", color: "#B45309" },
 };
+
+// Rodovias federais principais, como polilinhas aproximadas (poucos pontos
+// de referência — não é georreferenciamento preciso do traçado completo,
+// mas o suficiente pra situar corredores logísticos/estratégicos no mapa).
+export interface StrategicRoute {
+  id: string;
+  name: string;
+  description: string;
+  points: Array<{ latitude: number; longitude: number }>;
+}
+
+export const STRATEGIC_ROUTES: StrategicRoute[] = [
+  {
+    id: "br-101",
+    name: "BR-101 (Rodovia Translitorânea)",
+    description: "Principal eixo rodoviário do litoral, Natal (RN) a Osório (RS).",
+    points: [
+      { latitude: -5.79, longitude: -35.21 },
+      { latitude: -8.05, longitude: -34.9 },
+      { latitude: -12.97, longitude: -38.5 },
+      { latitude: -19.92, longitude: -40.34 },
+      { latitude: -22.9, longitude: -43.2 },
+      { latitude: -26.3, longitude: -48.85 },
+      { latitude: -29.94, longitude: -50.27 },
+    ],
+  },
+  {
+    id: "br-116",
+    name: "BR-116 (Rodovia Régis Bittencourt/Fernão Dias)",
+    description: "Principal corredor sul-nordeste, Fortaleza (CE) a Jaguarão (RS).",
+    points: [
+      { latitude: -3.78, longitude: -38.53 },
+      { latitude: -8.05, longitude: -37.05 },
+      { latitude: -12.97, longitude: -38.5 },
+      { latitude: -19.92, longitude: -43.94 },
+      { latitude: -23.55, longitude: -46.63 },
+      { latitude: -26.3, longitude: -48.85 },
+      { latitude: -30.03, longitude: -51.23 },
+      { latitude: -32.57, longitude: -53.38 },
+    ],
+  },
+  {
+    id: "br-040",
+    name: "BR-040",
+    description: "Corredor Brasília (DF) – Rio de Janeiro (RJ), via Belo Horizonte.",
+    points: [
+      { latitude: -15.87, longitude: -47.92 },
+      { latitude: -18.0, longitude: -46.0 },
+      { latitude: -19.92, longitude: -43.94 },
+      { latitude: -22.0, longitude: -43.4 },
+      { latitude: -22.9, longitude: -43.2 },
+    ],
+  },
+  {
+    id: "br-364",
+    name: "BR-364",
+    description: "Corredor Cuiabá (MT) – Rio Branco (AC), integração centro-oeste/norte.",
+    points: [
+      { latitude: -15.6, longitude: -56.1 },
+      { latitude: -12.6, longitude: -60.1 },
+      { latitude: -9.97, longitude: -62.0 },
+      { latitude: -8.76, longitude: -63.9 },
+      { latitude: -9.97, longitude: -67.81 },
+    ],
+  },
+  {
+    id: "br-163",
+    name: "BR-163",
+    description: "Corredor logístico do agronegócio, Cuiabá (MT) a Santarém (PA).",
+    points: [
+      { latitude: -15.6, longitude: -56.1 },
+      { latitude: -11.86, longitude: -55.5 },
+      { latitude: -9.07, longitude: -55.1 },
+      { latitude: -4.24, longitude: -55.99 },
+      { latitude: -2.44, longitude: -54.71 },
+    ],
+  },
+  {
+    id: "br-230",
+    name: "BR-230 (Transamazônica)",
+    description: "Corredor leste-oeste da Amazônia, João Pessoa (PB) a Lábrea (AM).",
+    points: [
+      { latitude: -7.12, longitude: -34.86 },
+      { latitude: -5.53, longitude: -47.48 },
+      { latitude: -3.71, longitude: -49.68 },
+      { latitude: -4.25, longitude: -55.99 },
+      { latitude: -7.32, longitude: -64.8 },
+      { latitude: -7.26, longitude: -64.8 },
+    ],
+  },
+];

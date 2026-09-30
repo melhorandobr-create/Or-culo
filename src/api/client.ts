@@ -542,13 +542,18 @@ export const api = {
   },
 
   // Rastreamento de voo — proxy pro backend, que usa openSkyClientId/Secret
-  // (nunca expostos ao app). Bounding box em graus decimais.
+  // (nunca expostos ao app). Bounding box em graus decimais. A finalidade
+  // é gerada automaticamente pelo próprio app (a camada de voos é uma
+  // visão geral de tráfego aéreo na área do mapa, não ligada a um caso
+  // específico) — evita perguntar isso ao usuário toda vez que ele só
+  // quer ver a camada de voos ao vivo.
   async getFlights(bbox: { lamin: number; lomin: number; lamax: number; lomax: number }) {
     const q = new URLSearchParams({
       lamin: String(bbox.lamin),
       lomin: String(bbox.lomin),
       lamax: String(bbox.lamax),
       lomax: String(bbox.lomax),
+      purpose: "Monitoramento de tráfego aéreo na área do mapa operacional",
     });
     return request<{ flights: unknown[] }>(`/public-data/flights?${q.toString()}`);
   },
