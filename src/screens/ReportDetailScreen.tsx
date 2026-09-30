@@ -27,6 +27,7 @@ import { DocumentOcrCapture } from "../components/DocumentOcrCapture";
 import { captureForensicMetadata } from "../utils/forensicMetadata";
 import { deleteOriginalAsset } from "../utils/mediaLibrarySafe";
 import { wrapPdfHtml } from "../utils/pdfBranding";
+import { SignatureExportModal } from "../components/SignatureExportModal";
 import {
   RELIABILITY_CODES,
   CREDIBILITY_CODES,
@@ -55,6 +56,7 @@ export default function ReportDetailScreen() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [accessDenied, setAccessDenied] = useState(false);
+  const [signModalVisible, setSignModalVisible] = useState(false);
   const [report, setReport] = useState<Report | null>(null);
   const [isOwner, setIsOwner] = useState(false);
   const [evidence, setEvidence] = useState<Evidence[]>([]);
@@ -75,6 +77,7 @@ export default function ReportDetailScreen() {
   const [editing, setEditing] = useState(false);
   const [editTitle, setEditTitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
+  const [editOperative, setEditOperative] = useState("");
   const [savingEdit, setSavingEdit] = useState(false);
   const [statusSaving, setStatusSaving] = useState(false);
 
@@ -135,7 +138,11 @@ export default function ReportDetailScreen() {
     if (!reportId) return;
     setSavingEdit(true);
     try {
-      const res = await api.updateReport(reportId, { title: editTitle.trim(), description: editDescription.trim() });
+      const res = await api.updateReport(reportId, {
+        title: editTitle.trim(),
+        description: editDescription.trim(),
+        operative: editOperative.trim(),
+      });
       setReport(res.report);
       setEditing(false);
     } catch (err) {
@@ -210,36 +217,35 @@ export default function ReportDetailScreen() {
     }
   }
 
-  async function handleExportPdf() {
+  function buildReportPdfHtml(): string {
+    return wrapPdfHtml(
+      `
+        <h1>${escapeHtml(report?.title || "Caso sem título")}</h1>
+        <p><strong>Protocolo:</strong> ${escapeHtml((report as any)?.protocolNumber || "")}</p>
+        <p><strong>Classificação:</strong> ${escapeHtml(report?.classification || "")}</p>
+        <p><strong>Status:</strong> ${escapeHtml(report?.status || "")}</p>
+        ${report?.operative ? `<p><strong>Codinome do operador:</strong> ${escapeHtml(report.operative)}</p>` : ""}
+        <p><strong>Descrição:</strong> ${escapeHtml(report?.description || "")}</p>
+        <h2>Cronologia</h2>
+        <ul>${timeline.map((e) => `<li>${escapeHtml(e.title || "")} — ${e.occurredAt ? new Date(e.occurredAt).toLocaleDateString("pt-BR") : ""}</li>`).join("")}</ul>
+        <h2>Hipóteses</h2>
+        <ul>${hypotheses.map((h) => `<li>${escapeHtml(h.statement || "")}</li>`).join("")}</ul>
+      `,
+      "Relatório de caso"
+    );
+  }
+
+  function handleExportPdf() {
     if (!report) return;
-    try {
-      const html = wrapPdfHtml(
-        `
-          <h1>${escapeHtml(report.title || "Caso sem título")}</h1>
-          <p><strong>Protocolo:</strong> ${escapeHtml((report as any).protocolNumber || "")}</p>
-          <p><strong>Classificação:</strong> ${escapeHtml(report.classification || "")}</p>
-          <p><strong>Status:</strong> ${escapeHtml(report.status || "")}</p>
-          <p><strong>Descrição:</strong> ${escapeHtml(report.description || "")}</p>
-          <h2>Cronologia</h2>
-          <ul>${timeline.map((e) => `<li>${escapeHtml(e.title || "")} — ${e.occurredAt ? new Date(e.occurredAt).toLocaleDateString("pt-BR") : ""}</li>`).join("")}</ul>
-          <h2>Hipóteses</h2>
-          <ul>${hypotheses.map((h) => `<li>${escapeHtml(h.statement || "")}</li>`).join("")}</ul>
-        `,
-        "Relatório de caso"
-      );
-      if (Platform.OS === "web") {
-        // expo-sharing não existe na web — abre o diálogo de impressão do
-        // navegador, onde "Salvar como PDF" é uma opção nativa do sistema.
-        await Print.printAsync({ html });
-        return;
-      }
-      const { uri } = await Print.printToFileAsync({ html });
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(uri, { mimeType: "application/pdf" });
-      }
-    } catch (err) {
-      Alert.alert("Erro ao exportar", "Não foi possível gerar o PDF.");
+    // Na web o fluxo de assinatura (navegador -> SafeID -> deep link de
+    // volta) não se aplica, então mantém o comportamento direto de sempre.
+    if (Platform.OS === "web") {
+      Print.printAsync({ html: buildReportPdfHtml() }).catch(() => {
+        Alert.alert("Erro ao exportar", "Não foi possível gerar o PDF.");
+      });
+      return;
     }
+    setSignModalVisible(true);
   }
 
   async function handleAttach(kind: "photo" | "video") {
@@ -388,6 +394,12 @@ export default function ReportDetailScreen() {
           <View style={{ gap: 10 }}>
             <TextInputLike theme={theme} value={editTitle} onChangeText={setEditTitle} placeholder="Título" />
             <TextInputLike theme={theme} value={editDescription} onChangeText={setEditDescription} placeholder="Descrição" multiline />
+            <TextInputLike
+              theme={theme}
+              value={editOperative}
+              onChangeText={setEditOperative}
+              placeholder="Codinome do operador (ex.: AG-07) — não substitui a assinatura"
+            />
             <View style={{ flexDirection: "row", gap: 10 }}>
               <Pressable style={[styles.primaryButton, { flex: 1 }, savingEdit && { opacity: 0.6 }]} disabled={savingEdit} onPress={handleSaveEdit}>
                 {savingEdit ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>Salvar</Text>}
@@ -404,6 +416,7 @@ export default function ReportDetailScreen() {
               if (!isOwner) return;
               setEditTitle(report?.title || "");
               setEditDescription(report?.description || "");
+              setEditOperative(report?.operative || "");
               setEditing(true);
             }}
           >
@@ -525,6 +538,14 @@ export default function ReportDetailScreen() {
           )}
         </View>
       </ScrollView>
+      {report && (
+        <SignatureExportModal
+          visible={signModalVisible}
+          onClose={() => setSignModalVisible(false)}
+          report={report}
+          html={buildReportPdfHtml()}
+        />
+      )}
     </View>
   );
 }
@@ -549,7 +570,7 @@ const DOSSIER_FIELDS: Array<[keyof Report, string]> = [
   ["authorizationReference", "Referência de autorização"],
   ["mapNotes", "Notas do mapa"],
   ["tags", "Tags"],
-  ["operative", "Operativo responsável"],
+  ["operative", "Codinome do operador"],
   ["parecer", "Parecer"],
   // Alguns casos antigos guardam entidades/relacionamentos como campo solto
   // no relatório em vez de registros próprios (aba "Entidades" cobre o

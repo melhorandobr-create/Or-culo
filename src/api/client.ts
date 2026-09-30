@@ -33,7 +33,7 @@ export async function setNetworkMode(mode: NetworkMode) {
   await setJson(NETWORK_MODE_KEY, mode);
 }
 
-function getBaseUrl(): string {
+export function getBaseUrl(): string {
   return currentNetworkMode === "private" ? PRIVATE_URL : PUBLIC_URL;
 }
 
@@ -359,6 +359,22 @@ export const api = {
 
   async deleteReport(id: string) {
     return request<void>(`/reports/${id}`, { method: "DELETE" });
+  },
+
+  // Fluxo de assinatura ICP-Brasil via Safeweb: o app manda o PDF já
+  // gerado localmente, recebe um signId, abre o navegador do sistema pra
+  // autorização com o e-CPF, e depois consulta o resultado por esse id.
+  async stageReportForSignature(id: string, pdfBase64: string) {
+    return request<{ signId: string }>(`/reports/${id}/sign/stage`, {
+      method: "POST",
+      body: JSON.stringify({ pdfBase64 }),
+    });
+  },
+
+  async getSignatureResult(id: string, signId: string) {
+    return request<{ status: "pending" | "done" | "error"; pdfBase64?: string; message?: string }>(
+      `/reports/${id}/sign/result?signId=${encodeURIComponent(signId)}`
+    );
   },
 
   // Upload multipart real — confirmado em routes/reports.js (multer, 60MB,
