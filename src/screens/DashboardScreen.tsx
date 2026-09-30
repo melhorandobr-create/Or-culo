@@ -14,6 +14,7 @@ import { useTheme } from "../contexts/ThemeContext";
 import { useAuth } from "../contexts/AuthContext";
 import { useCases } from "../contexts/CasesContext";
 import { useSystemAlerts } from "../hooks/useSystemAlerts";
+import { usePrognose } from "../hooks/usePrognose";
 import { Theme } from "../theme";
 import { api } from "../api/client";
 import { OfflineBanner } from "../components/OfflineBanner";
@@ -35,6 +36,10 @@ export default function DashboardScreen() {
   // requisições e sem cache nenhum.
   const { loading: loadingCases, error: casesError, reports, offline, cachedAt, reload: reloadCases } = useCases();
   const alerts = useSystemAlerts();
+  // Dashboard é a tela mais visitada (home do app) — basta montar o hook
+  // pra disparar a checagem diária do Prognose sozinho, sem depender do
+  // usuário lembrar de abrir a Central de Comando.
+  usePrognose();
 
   const [refreshing, setRefreshing] = useState(false);
   const [extraStats, setExtraStats] = useState<ExtraStats>({ sources: 0, pending: 0 });

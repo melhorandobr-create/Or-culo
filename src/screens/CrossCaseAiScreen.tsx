@@ -6,6 +6,7 @@ import { useTheme } from "../contexts/ThemeContext";
 import { Theme } from "../theme";
 import { api, ApiError } from "../api/client";
 import { useAllCasesIntelligence } from "../hooks/useAllCasesIntelligence";
+import { usePrognose } from "../hooks/usePrognose";
 
 export default function CrossCaseAiScreen() {
   const theme = useTheme();
@@ -13,12 +14,17 @@ export default function CrossCaseAiScreen() {
   const styles = useMemo(() => buildStyles(theme), [theme]);
   const navigation = useNavigation<any>();
   const { loading: loadingCases, reports } = useAllCasesIntelligence();
+  const { latest: latestPrognose } = usePrognose();
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [question, setQuestion] = useState("");
   const [asking, setAsking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<{ text: string; provider: string } | null>(null);
+  // Antes esta tela partia do zero a cada pergunta, sem enxergar o que o
+  // Prognose (Central de Comando) já concluiu sobre os mesmos casos —
+  // agora dá pra reaproveitar esse contexto em vez de repetir trabalho.
+  const [usePrognoseContext, setUsePrognoseContext] = useState(false);
 
   function toggle(id: string) {
     setSelected((prev) => {
@@ -42,7 +48,11 @@ export default function CrossCaseAiScreen() {
     setResult(null);
     setAsking(true);
     try {
-      const res = await api.aiCrossCaseAssist(Array.from(selected), question.trim());
+      const finalQuestion =
+        usePrognoseContext && latestPrognose
+          ? `Contexto (Prognose mais recente, gerado em ${new Date(latestPrognose.generatedAt).toLocaleString("pt-BR")}):\n${latestPrognose.text}\n\nPergunta: ${question.trim()}`
+          : question.trim();
+      const res = await api.aiCrossCaseAssist(Array.from(selected), finalQuestion);
       setResult(res);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "BlindAI/Grok indisponível.");
@@ -81,6 +91,22 @@ export default function CrossCaseAiScreen() {
               );
             })}
           </View>
+        )}
+
+        {latestPrognose && (
+          <Pressable
+            style={[styles.prognoseToggle, usePrognoseContext && styles.prognoseToggleActive]}
+            onPress={() => setUsePrognoseContext((v) => !v)}
+          >
+            <Ionicons
+              name={usePrognoseContext ? "checkbox" : "square-outline"}
+              size={16}
+              color={usePrognoseContext ? color.primary : color.textFaint}
+            />
+            <Text style={[styles.prognoseToggleText, usePrognoseContext && { color: color.primary }]}>
+              Incluir Prognose mais recente ({new Date(latestPrognose.generatedAt).toLocaleDateString("pt-BR")}) como contexto
+            </Text>
+          </Pressable>
         )}
 
         <Text style={styles.sectionLabel}>Pergunta</Text>
@@ -129,6 +155,9 @@ function buildStyles(theme: Theme) {
     caseRowActive: { borderColor: color.primary, backgroundColor: color.infoTint },
     caseRowTitle: { flex: 1, fontSize: 13, fontWeight: "600", color: color.text },
     input: { backgroundColor: color.surface, borderRadius: radius.md, borderWidth: 1, borderColor: color.border, padding: 13, fontSize: 13.5, color: color.text, minHeight: 80, textAlignVertical: "top", marginBottom: 12 },
+    prognoseToggle: { flexDirection: "row", alignItems: "center", gap: 9, backgroundColor: color.surface, borderRadius: radius.md, borderWidth: 1, borderColor: color.border, padding: 11, marginBottom: space.lg },
+    prognoseToggleActive: { borderColor: color.primary, backgroundColor: color.infoTint },
+    prognoseToggleText: { flex: 1, fontSize: 12, color: color.textMuted, fontWeight: "600" },
     errorText: { color: color.danger, fontSize: 12.5, marginBottom: 10 },
     askButton: { backgroundColor: color.primary, borderRadius: radius.lg, padding: 14, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
     askButtonText: { color: "#fff", fontWeight: "700", fontSize: 14 },

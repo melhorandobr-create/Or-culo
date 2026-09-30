@@ -2,12 +2,12 @@ import React, { useMemo, useState } from "react";
 import { View, Text, StyleSheet, Pressable, ActivityIndicator } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
-import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, Polyline } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { useTheme } from "../contexts/ThemeContext";
 import { Theme } from "../theme";
-import { STRATEGIC_SITES, STRATEGIC_KIND_META } from "../constants/strategicSites";
+import { STRATEGIC_SITES, STRATEGIC_KIND_META, STRATEGIC_ROUTES } from "../constants/strategicSites";
 import { useTerritorialMapData, MapLayer } from "../hooks/useTerritorialMapData";
 import { clusterPoints } from "../utils/clusterPoints";
 
@@ -31,6 +31,7 @@ export default function TerritorialMapScreenWeb() {
   const navigation = useNavigation<any>();
 
   const [layer, setLayer] = useState<MapLayer>("cases");
+  const [sheetExpanded, setSheetExpanded] = useState(true);
   const { loading, error, reports, flights, flightsError, monitors, offline, cachedAt } = useTerritorialMapData(layer);
 
   const clusters = useMemo(
@@ -100,6 +101,15 @@ export default function TerritorialMapScreenWeb() {
                 </Marker>
               );
             })}
+
+          {layer === "strategic" &&
+            STRATEGIC_ROUTES.map((r) => (
+              <Polyline
+                key={r.id}
+                positions={r.points.map((p) => [p.latitude, p.longitude] as [number, number])}
+                pathOptions={{ color: "#B45309", weight: 2.5, dashArray: "6 4" }}
+              />
+            ))}
         </MapContainer>
       </View>
 
@@ -136,9 +146,12 @@ export default function TerritorialMapScreenWeb() {
         </View>
       )}
 
-      <View style={styles.bottomSheet} pointerEvents="box-none">
-        <View style={styles.grabber} />
-        {layer === "cases" ? (
+      <View style={[styles.bottomSheet, !sheetExpanded && styles.bottomSheetCollapsed]} pointerEvents="box-none">
+        <Pressable style={styles.grabberRow} onPress={() => setSheetExpanded((v) => !v)}>
+          <View style={styles.grabber} />
+          <Ionicons name={sheetExpanded ? "chevron-down" : "chevron-up"} size={14} color={color.textFaint} />
+        </Pressable>
+        {!sheetExpanded ? null : layer === "cases" ? (
           <>
             <View style={styles.sheetHeader}>
               <Text style={styles.sheetTitle}>Acervo de casos no mapa</Text>
@@ -152,7 +165,7 @@ export default function TerritorialMapScreenWeb() {
             {reports.length === 0 ? (
               <Text style={styles.emptyText}>Nenhum caso georreferenciado ainda.</Text>
             ) : (
-              reports.slice(0, 6).map((r: any) => (
+              reports.map((r: any) => (
                 <Pressable key={r.id} style={styles.caseRow} onPress={() => navigation.navigate("ReportDetail", { reportId: r.id })}>
                   <View style={[styles.dot, { backgroundColor: r.classification === "SECRETO" ? color.danger : color.primary }]} />
                   <Text style={styles.caseRowTitle} numberOfLines={1}>{r.title || r.displayName}</Text>
@@ -171,7 +184,7 @@ export default function TerritorialMapScreenWeb() {
             {flights.length === 0 ? (
               <Text style={styles.emptyText}>Nenhuma aeronave na área no momento.</Text>
             ) : (
-              flights.slice(0, 6).map((f: any) => (
+              flights.map((f: any) => (
                 <View key={f.icao24} style={styles.flightRow}>
                   <Text style={styles.flightCallsign}>{f.callsign || f.icao24}</Text>
                   <Text style={styles.flightMeta}>{f.origin_country}</Text>
@@ -189,7 +202,7 @@ export default function TerritorialMapScreenWeb() {
             {monitors.length === 0 ? (
               <Text style={styles.emptyText}>Nenhuma fonte monitorada ainda.</Text>
             ) : (
-              monitors.slice(0, 8).map((m) => (
+              monitors.map((m) => (
                 <View key={m.id} style={styles.caseRow}>
                   <View style={[styles.dot, { backgroundColor: color.primary }]} />
                   <View style={{ flex: 1 }}>
@@ -204,9 +217,11 @@ export default function TerritorialMapScreenWeb() {
           <>
             <View style={styles.sheetHeader}>
               <Text style={styles.sheetTitle}>Infraestrutura estratégica</Text>
-              <Text style={styles.sheetCount}>{STRATEGIC_SITES.length} locais</Text>
+              <Text style={styles.sheetCount}>{STRATEGIC_SITES.length} locais + {STRATEGIC_ROUTES.length} rodovias</Text>
             </View>
-            <Text style={styles.sourceCaption}>informação pública — INB, usinas nucleares, hidrelétricas, base de lançamento</Text>
+            <Text style={styles.sourceCaption}>
+              informação pública — nuclear, hidrelétricas, base de lançamento, aeroportos, PF e postos de fronteira
+            </Text>
             {STRATEGIC_SITES.map((s) => {
               const meta = STRATEGIC_KIND_META[s.kind];
               return (
@@ -219,6 +234,16 @@ export default function TerritorialMapScreenWeb() {
                 </View>
               );
             })}
+            <Text style={[styles.sourceCaption, { marginTop: 6 }]}>Rodovias federais (corredores aproximados)</Text>
+            {STRATEGIC_ROUTES.map((r) => (
+              <View key={r.id} style={styles.caseRow}>
+                <View style={[styles.dot, { backgroundColor: "#B45309" }]} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.caseRowTitle} numberOfLines={1}>{r.name}</Text>
+                  <Text style={styles.flightMeta} numberOfLines={1}>{r.description}</Text>
+                </View>
+              </View>
+            ))}
           </>
         ) : (
           <Text style={styles.emptyText}>Selecione um monitoramento pra ver detalhes.</Text>
@@ -284,13 +309,15 @@ function buildStyles(theme: Theme) {
       borderTopLeftRadius: 22,
       borderTopRightRadius: 22,
       paddingHorizontal: space.xl,
-      paddingTop: 12,
+      paddingTop: 10,
       paddingBottom: 24,
-      maxHeight: 320,
+      maxHeight: 420,
       zIndex: 500,
       overflow: "scroll" as any,
     },
-    grabber: { width: 36, height: 4, backgroundColor: color.border, borderRadius: 2, alignSelf: "center", marginBottom: 14 },
+    bottomSheetCollapsed: { maxHeight: 34, paddingBottom: 10, overflow: "hidden" as any },
+    grabberRow: { alignItems: "center", paddingVertical: 6, gap: 4, cursor: "pointer" as any },
+    grabber: { width: 36, height: 4, backgroundColor: color.border, borderRadius: 2 },
     sheetHeader: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", marginBottom: 12 },
     sheetTitle: { fontSize: 16, fontWeight: "700", color: color.text, letterSpacing: -0.2 },
     sheetCount: { fontSize: 12, color: color.textFaint },

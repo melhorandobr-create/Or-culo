@@ -6,6 +6,7 @@ import { useTheme } from "../contexts/ThemeContext";
 import { Theme } from "../theme";
 import { useAllCasesIntelligence } from "../hooks/useAllCasesIntelligence";
 import { useWatchlist } from "../hooks/useWatchlist";
+import { useDismissedDuplicates } from "../hooks/useDismissedDuplicates";
 import { OfflineBanner } from "../components/OfflineBanner";
 import { similarity } from "../utils/fuzzyMatch";
 
@@ -21,6 +22,7 @@ export default function CorrelationScreen() {
   const { loading, error, reports, intelByReportId, offline, cachedAt } = useAllCasesIntelligence();
   const { terms: watchTerms, addTerm } = useWatchlist();
   const isWatched = (name: string) => watchTerms.some((t) => t.toLowerCase() === name.toLowerCase());
+  const { dismissed, dismiss } = useDismissedDuplicates();
 
   const groups = useMemo(() => {
     const byName = new Map<string, { display: string; type: string; hits: Array<{ reportId: string; reportTitle: string }> }>();
@@ -63,8 +65,14 @@ export default function CorrelationScreen() {
         }
       }
     }
-    return pairs.sort((x, y) => y.score - x.score).slice(0, 20);
+    return pairs.sort((x, y) => y.score - x.score);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reports, intelByReportId]);
+
+  const visibleNearDuplicates = useMemo(
+    () => nearDuplicates.filter((p) => !dismissed.has([p.a.trim().toLowerCase(), p.b.trim().toLowerCase()].sort().join("::"))).slice(0, 20),
+    [nearDuplicates, dismissed]
+  );
 
   return (
     <View style={styles.container}>
@@ -122,11 +130,11 @@ export default function CorrelationScreen() {
             </View>
           )}
 
-          {nearDuplicates.length > 0 && (
+          {visibleNearDuplicates.length > 0 && (
             <>
               <Text style={[styles.sectionLabel, { marginTop: theme.space.xxl }]}>Possíveis duplicatas (nomes parecidos)</Text>
               <View style={{ gap: theme.space.md }}>
-                {nearDuplicates.map((p, i) => (
+                {visibleNearDuplicates.map((p, i) => (
                   <View key={i} style={styles.dupCard}>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.dupText}>"{p.a}" ≈ "{p.b}"</Text>
@@ -145,6 +153,9 @@ export default function CorrelationScreen() {
                         size={16}
                         color={isWatched(p.a) && isWatched(p.b) ? color.textFaint : color.danger}
                       />
+                    </Pressable>
+                    <Pressable style={styles.dismissButton} onPress={() => dismiss(p.a, p.b)}>
+                      <Ionicons name="close" size={16} color={color.textFaint} />
                     </Pressable>
                   </View>
                 ))}
@@ -183,5 +194,6 @@ function buildStyles(theme: Theme) {
     watchButton: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 10, alignSelf: "flex-start", backgroundColor: color.dangerTint, borderRadius: 8, paddingVertical: 6, paddingHorizontal: 9 },
     watchButtonText: { fontSize: 11, color: color.danger, fontWeight: "700" },
     watchIconButton: { width: 28, height: 28, borderRadius: 9, backgroundColor: color.dangerTint, alignItems: "center", justifyContent: "center" },
+    dismissButton: { width: 28, height: 28, borderRadius: 9, backgroundColor: color.bg, alignItems: "center", justifyContent: "center", marginLeft: 6 },
   });
 }
