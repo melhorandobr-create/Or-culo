@@ -149,38 +149,32 @@ export default function DashboardScreen() {
           <Text style={styles.primaryButtonText}>Novo caso</Text>
         </Pressable>
 
-        <View style={styles.quickAccess}>
-          <QuickRow
+        <Text style={styles.moduleGridLabel}>Módulos</Text>
+        <View style={styles.moduleGrid}>
+          <ModuleTile theme={theme} icon="map-outline" label="Mapa" onPress={() => navigation.navigate("TerritorialMap")} />
+          <ModuleTile theme={theme} icon="server-outline" label="Fontes" onPress={() => navigation.navigate("PublicSources")} />
+          <ModuleTile
             theme={theme}
-            icon="map-outline"
-            iconColor={color.primary}
-            tint={color.infoTint}
-            title="Acervo de casos no mapa"
-            subtitle={`${stats.pins} casos georreferenciados`}
-            onPress={() => navigation.navigate("TerritorialMap")}
+            icon="speedometer-outline"
+            label="Comando"
+            badge={alerts.overdueTasks > 0 ? alerts.overdueTasks : undefined}
+            onPress={() => navigation.navigate("CommandCenter")}
           />
-          <QuickRow
+          <ModuleTile
             theme={theme}
-            icon="server-outline"
-            iconColor={color.warning}
-            tint={color.warningTint}
-            title="Central de dados e fontes"
-            subtitle={`${stats.sources} fontes monitoradas`}
-            onPress={() => navigation.navigate("PublicSources")}
+            icon="git-network-outline"
+            label="Correlação"
+            badge={alerts.nearDuplicates > 0 ? alerts.nearDuplicates : undefined}
+            onPress={() => navigation.navigate("Correlation")}
           />
-          <QuickRow
+          <ModuleTile theme={theme} icon="time-outline" label="Timeline" onPress={() => navigation.navigate("SystemTimeline")} />
+          <ModuleTile theme={theme} icon="sparkles-outline" label="Assistente IA" onPress={() => navigation.navigate("CrossCaseAi")} />
+          <ModuleTile
             theme={theme}
-            icon="albums-outline"
-            iconColor={color.primary}
-            tint={color.infoTint}
-            title="Central de Inteligência"
-            subtitle={
-              alerts.total > 0
-                ? `${alerts.total} ponto(s) de atenção — comando, correlação, timeline, IA e vigilância`
-                : "Comando, correlação, timeline, IA e vigilância — tudo em um lugar"
-            }
-            badge={alerts.total > 0 ? alerts.total : undefined}
-            onPress={() => navigation.navigate("IntelligenceHub")}
+            icon="eye-outline"
+            label="Vigilância"
+            badge={alerts.watchlistHits > 0 ? alerts.watchlistHits : undefined}
+            onPress={() => navigation.navigate("Watchlist")}
           />
         </View>
 
@@ -249,55 +243,47 @@ function StatCard({
   );
 }
 
-function QuickRow({
+// Grade densa de módulos, acesso direto (um toque, sem hub intermediário)
+// — linguagem visual mais próxima de portal institucional/governamental
+// do que de lista de cards estilo app de consumo.
+function ModuleTile({
   theme,
   icon,
-  iconColor,
-  tint,
-  title,
-  subtitle,
+  label,
   badge,
   onPress,
 }: {
   theme: Theme;
   icon: keyof typeof Ionicons.glyphMap;
-  iconColor: string;
-  tint: string;
-  title: string;
-  subtitle: string;
+  label: string;
   badge?: number;
   onPress: () => void;
 }) {
-  const { color, space, radius } = theme;
+  const { color, radius } = theme;
   return (
-    <Pressable
-      style={{
-        backgroundColor: color.surface,
-        borderRadius: radius.xl,
-        padding: space.lg,
-        flexDirection: "row",
-        alignItems: "center",
-        gap: space.md,
-        ...theme.shadow.card,
-      }}
-      onPress={onPress}
-    >
-      <View style={{ width: 38, height: 38, borderRadius: 11, backgroundColor: tint, alignItems: "center", justifyContent: "center" }}>
-        <Ionicons name={icon} size={18} color={iconColor} />
+    <Pressable style={styles_moduleTile.tile} onPress={onPress}>
+      <View style={[styles_moduleTile.iconBox, { backgroundColor: color.bg, borderColor: color.border }]}>
+        <Ionicons name={icon} size={19} color={color.text} />
+        {badge != null && (
+          <View style={[styles_moduleTile.badge, { backgroundColor: color.danger }]}>
+            <Text style={styles_moduleTile.badgeText}>{badge > 9 ? "9+" : badge}</Text>
+          </View>
+        )}
       </View>
-      <View style={{ flex: 1 }}>
-        <Text style={{ fontSize: 14, fontWeight: "600", color: color.text }}>{title}</Text>
-        <Text style={{ fontSize: 12, color: color.textMuted, marginTop: 2 }}>{subtitle}</Text>
-      </View>
-      {badge != null && (
-        <View style={{ backgroundColor: color.danger, borderRadius: 10, minWidth: 20, height: 20, alignItems: "center", justifyContent: "center", paddingHorizontal: 5 }}>
-          <Text style={{ color: "#fff", fontSize: 11, fontWeight: "700" }}>{badge}</Text>
-        </View>
-      )}
-      <Ionicons name="chevron-forward" size={16} color={color.textFaint} />
+      <Text style={[styles_moduleTile.label, { color: color.text }]} numberOfLines={1}>
+        {label}
+      </Text>
     </Pressable>
   );
 }
+
+const styles_moduleTile = StyleSheet.create({
+  tile: { width: "23%", alignItems: "center", gap: 6, marginBottom: 14 },
+  iconBox: { width: 52, height: 52, borderRadius: 14, borderWidth: 1, alignItems: "center", justifyContent: "center" },
+  badge: { position: "absolute", top: -4, right: -4, borderRadius: 8, minWidth: 17, height: 17, alignItems: "center", justifyContent: "center", paddingHorizontal: 4 },
+  badgeText: { color: "#fff", fontSize: 9.5, fontWeight: "700" },
+  label: { fontSize: 10.5, fontWeight: "600", textAlign: "center" },
+});
 
 function buildStyles(theme: Theme) {
   const { color, font, radius, space } = theme;
@@ -351,7 +337,8 @@ function buildStyles(theme: Theme) {
       marginBottom: space.xxl,
     },
     primaryButtonText: { color: "#fff", fontWeight: "600", fontSize: 14.5 },
-    quickAccess: { gap: space.md, marginBottom: space.xxl },
+    moduleGridLabel: { fontSize: 11, fontWeight: "700", color: color.textFaint, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 10 },
+    moduleGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", marginBottom: space.md },
     sectionHeaderRow: { marginBottom: space.md },
     sectionHeader: { fontSize: 15, fontWeight: "700", color: color.text, letterSpacing: -0.2 },
     emptyCard: { backgroundColor: color.surface, borderRadius: radius.xl, padding: 34, alignItems: "center" },

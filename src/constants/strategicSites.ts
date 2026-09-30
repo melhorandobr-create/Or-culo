@@ -257,6 +257,15 @@ export const STRATEGIC_SITES: StrategicSite[] = [
     description: "Tríplice fronteira Brasil-Argentina-Paraguai.",
   },
   {
+    id: "aero-vdc",
+    name: "Aeroporto de Vitória da Conquista (VDC)",
+    kind: "airport",
+    state: "BA",
+    latitude: -14.8867,
+    longitude: -40.8614,
+    description: "Principal aeroporto do interior sudoeste da Bahia.",
+  },
+  {
     id: "aero-bvb",
     name: "Aeroporto Internacional de Boa Vista (BVB)",
     kind: "airport",
@@ -576,6 +585,15 @@ export const STRATEGIC_SITES: StrategicSite[] = [
     longitude: -54.6201,
     description: "Comando do Exército responsável pela fronteira oeste (Bolívia/Paraguai).",
   },
+  {
+    id: "9bc-vitoria-conquista",
+    name: "9º Batalhão de Caçadores (Exército)",
+    kind: "army",
+    state: "BA",
+    latitude: -14.8532,
+    longitude: -40.8347,
+    description: "Unidade do Exército Brasileiro sediada em Vitória da Conquista, interior da Bahia.",
+  },
   // --- Portos estratégicos ---
   {
     id: "porto-santos",
@@ -695,11 +713,13 @@ export const STRATEGIC_ROUTES: StrategicRoute[] = [
   {
     id: "br-116",
     name: "BR-116 (Rodovia Régis Bittencourt/Fernão Dias)",
-    description: "Principal corredor sul-nordeste, Fortaleza (CE) a Jaguarão (RS).",
+    description: "Principal corredor sul-nordeste, Fortaleza (CE) a Jaguarão (RS) — passa pelo interior da Bahia via Vitória da Conquista.",
     points: [
       { latitude: -3.78, longitude: -38.53 },
       { latitude: -8.05, longitude: -37.05 },
       { latitude: -12.97, longitude: -38.5 },
+      { latitude: -14.87, longitude: -40.84 },
+      { latitude: -17.24, longitude: -42.53 },
       { latitude: -19.92, longitude: -43.94 },
       { latitude: -23.55, longitude: -46.63 },
       { latitude: -26.3, longitude: -48.85 },
