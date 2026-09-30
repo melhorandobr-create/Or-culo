@@ -14,6 +14,9 @@ import ReportDetailScreen from "../screens/ReportDetailScreen";
 import ActivationCodesScreen from "../screens/ActivationCodesScreen";
 import AccessRequestsScreen from "../screens/AccessRequestsScreen";
 import PublicSourcesScreen from "../screens/PublicSourcesScreen";
+import CommandCenterScreen from "../screens/CommandCenterScreen";
+import CorrelationScreen from "../screens/CorrelationScreen";
+import SystemTimelineScreen from "../screens/SystemTimelineScreen";
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -60,6 +63,9 @@ export default function RootNavigator() {
             <Stack.Screen name="ActivationCodes" component={ActivationCodesScreen} />
             <Stack.Screen name="AccessRequests" component={AccessRequestsScreen} />
             <Stack.Screen name="PublicSources" component={PublicSourcesScreen} />
+            <Stack.Screen name="CommandCenter" component={CommandCenterScreen} />
+            <Stack.Screen name="Correlation" component={CorrelationScreen} />
+            <Stack.Screen name="SystemTimeline" component={SystemTimelineScreen} />
           </>
         ) : (
           <Stack.Screen name="Login" component={LoginScreen} />

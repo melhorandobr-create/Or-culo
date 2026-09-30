@@ -148,6 +148,33 @@ export default function DashboardScreen() {
             subtitle={`${stats.sources} fontes monitoradas`}
             onPress={() => navigation.navigate("PublicSources")}
           />
+          <QuickRow
+            theme={theme}
+            icon="speedometer-outline"
+            iconColor={color.primary}
+            tint={color.infoTint}
+            title="Central de comando"
+            subtitle="Visão geral de risco, fase e tarefas de todos os casos"
+            onPress={() => navigation.navigate("CommandCenter")}
+          />
+          <QuickRow
+            theme={theme}
+            icon="git-network-outline"
+            iconColor={color.warning}
+            tint={color.warningTint}
+            title="Correlação entre casos"
+            subtitle="Entidades que aparecem em mais de um caso"
+            onPress={() => navigation.navigate("Correlation")}
+          />
+          <QuickRow
+            theme={theme}
+            icon="time-outline"
+            iconColor={color.success}
+            tint={color.successTint}
+            title="Linha do tempo geral"
+            subtitle="Todos os eventos, de todos os casos, em ordem"
+            onPress={() => navigation.navigate("SystemTimeline")}
+          />
         </View>
 
         <View style={styles.sectionHeaderRow}>
