@@ -19,6 +19,7 @@ import CorrelationScreen from "../screens/CorrelationScreen";
 import SystemTimelineScreen from "../screens/SystemTimelineScreen";
 import CrossCaseAiScreen from "../screens/CrossCaseAiScreen";
 import WatchlistScreen from "../screens/WatchlistScreen";
+import IntelligenceHubScreen from "../screens/IntelligenceHubScreen";
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -70,6 +71,7 @@ export default function RootNavigator() {
             <Stack.Screen name="SystemTimeline" component={SystemTimelineScreen} />
             <Stack.Screen name="CrossCaseAi" component={CrossCaseAiScreen} />
             <Stack.Screen name="Watchlist" component={WatchlistScreen} />
+            <Stack.Screen name="IntelligenceHub" component={IntelligenceHubScreen} />
           </>
         ) : (
           <Stack.Screen name="Login" component={LoginScreen} />

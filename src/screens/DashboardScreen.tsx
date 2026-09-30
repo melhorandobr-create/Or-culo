@@ -13,6 +13,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../contexts/ThemeContext";
 import { useAuth } from "../contexts/AuthContext";
 import { useCases } from "../contexts/CasesContext";
+import { useSystemAlerts } from "../hooks/useSystemAlerts";
 import { Theme } from "../theme";
 import { api } from "../api/client";
 import { OfflineBanner } from "../components/OfflineBanner";
@@ -33,6 +34,7 @@ export default function DashboardScreen() {
   // Antes o Dashboard refazia essa busca por conta própria, duplicando
   // requisições e sem cache nenhum.
   const { loading: loadingCases, error: casesError, reports, offline, cachedAt, reload: reloadCases } = useCases();
+  const alerts = useSystemAlerts();
 
   const [refreshing, setRefreshing] = useState(false);
   const [extraStats, setExtraStats] = useState<ExtraStats>({ sources: 0, pending: 0 });
@@ -96,8 +98,18 @@ export default function DashboardScreen() {
           </View>
           <Text style={styles.logoText}>Oráculo</Text>
         </View>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>{initials}</Text>
+        <View style={styles.headerRight}>
+          <Pressable style={styles.bellButton} onPress={() => navigation.navigate("IntelligenceHub")}>
+            <Ionicons name={alerts.total > 0 ? "notifications" : "notifications-outline"} size={18} color={alerts.total > 0 ? color.danger : color.text} />
+            {alerts.total > 0 && (
+              <View style={styles.bellBadge}>
+                <Text style={styles.bellBadgeText}>{alerts.total > 9 ? "9+" : alerts.total}</Text>
+              </View>
+            )}
+          </Pressable>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>{initials}</Text>
+          </View>
         </View>
       </View>
 
@@ -153,48 +165,17 @@ export default function DashboardScreen() {
           />
           <QuickRow
             theme={theme}
-            icon="speedometer-outline"
+            icon="albums-outline"
             iconColor={color.primary}
             tint={color.infoTint}
-            title="Central de comando"
-            subtitle="Visão geral de risco, fase e tarefas de todos os casos"
-            onPress={() => navigation.navigate("CommandCenter")}
-          />
-          <QuickRow
-            theme={theme}
-            icon="git-network-outline"
-            iconColor={color.warning}
-            tint={color.warningTint}
-            title="Correlação entre casos"
-            subtitle="Entidades que aparecem em mais de um caso"
-            onPress={() => navigation.navigate("Correlation")}
-          />
-          <QuickRow
-            theme={theme}
-            icon="time-outline"
-            iconColor={color.success}
-            tint={color.successTint}
-            title="Linha do tempo geral"
-            subtitle="Todos os eventos, de todos os casos, em ordem"
-            onPress={() => navigation.navigate("SystemTimeline")}
-          />
-          <QuickRow
-            theme={theme}
-            icon="sparkles-outline"
-            iconColor={color.primary}
-            tint={color.infoTint}
-            title="Assistente IA — múltiplos casos"
-            subtitle="Pergunte algo que cruze vários casos ao mesmo tempo"
-            onPress={() => navigation.navigate("CrossCaseAi")}
-          />
-          <QuickRow
-            theme={theme}
-            icon="eye-outline"
-            iconColor={color.danger}
-            tint={color.dangerTint}
-            title="Lista de vigilância"
-            subtitle="Termos de interesse cruzados com todos os casos"
-            onPress={() => navigation.navigate("Watchlist")}
+            title="Central de Inteligência"
+            subtitle={
+              alerts.total > 0
+                ? `${alerts.total} ponto(s) de atenção — comando, correlação, timeline, IA e vigilância`
+                : "Comando, correlação, timeline, IA e vigilância — tudo em um lugar"
+            }
+            badge={alerts.total > 0 ? alerts.total : undefined}
+            onPress={() => navigation.navigate("IntelligenceHub")}
           />
         </View>
 
@@ -270,6 +251,7 @@ function QuickRow({
   tint,
   title,
   subtitle,
+  badge,
   onPress,
 }: {
   theme: Theme;
@@ -278,6 +260,7 @@ function QuickRow({
   tint: string;
   title: string;
   subtitle: string;
+  badge?: number;
   onPress: () => void;
 }) {
   const { color, space, radius } = theme;
@@ -301,6 +284,11 @@ function QuickRow({
         <Text style={{ fontSize: 14, fontWeight: "600", color: color.text }}>{title}</Text>
         <Text style={{ fontSize: 12, color: color.textMuted, marginTop: 2 }}>{subtitle}</Text>
       </View>
+      {badge != null && (
+        <View style={{ backgroundColor: color.danger, borderRadius: 10, minWidth: 20, height: 20, alignItems: "center", justifyContent: "center", paddingHorizontal: 5 }}>
+          <Text style={{ color: "#fff", fontSize: 11, fontWeight: "700" }}>{badge}</Text>
+        </View>
+      )}
       <Ionicons name="chevron-forward" size={16} color={color.textFaint} />
     </Pressable>
   );
@@ -320,8 +308,12 @@ function buildStyles(theme: Theme) {
       justifyContent: "space-between",
     },
     headerLeft: { flexDirection: "row", alignItems: "center", gap: 9 },
+    headerRight: { flexDirection: "row", alignItems: "center", gap: 10 },
     logoDot: { width: 30, height: 30, borderRadius: 9, backgroundColor: color.primary, alignItems: "center", justifyContent: "center" },
     logoText: { fontSize: 17, fontWeight: "700", color: color.text },
+    bellButton: { width: 32, height: 32, borderRadius: 16, backgroundColor: "#EBEFF4", alignItems: "center", justifyContent: "center" },
+    bellBadge: { position: "absolute", top: -3, right: -3, backgroundColor: color.danger, borderRadius: 8, minWidth: 16, height: 16, alignItems: "center", justifyContent: "center", paddingHorizontal: 3 },
+    bellBadgeText: { color: "#fff", fontSize: 9, fontWeight: "700" },
     avatar: { width: 32, height: 32, borderRadius: 16, backgroundColor: "#EBEFF4", alignItems: "center", justifyContent: "center" },
     avatarText: { color: color.textMuted, fontWeight: "600", fontSize: 12 },
     scroll: { padding: space.xl, paddingTop: space.md, paddingBottom: 40, gap: 0 },

@@ -63,18 +63,20 @@ export default function TerritorialMapScreen() {
           ))}
 
         {layer === "flights" &&
-          flights.map((f: any) => (
-            <Marker
-              key={f.icao24}
-              coordinate={{ latitude: f.latitude, longitude: f.longitude }}
-              title={f.callsign}
-              description={`${f.baro_altitude ?? "?"} m · ${f.velocity ?? "?"} m/s`}
-              rotation={f.true_track ?? 0}
-              flat
-            >
-              <Ionicons name="airplane" size={18} color="#0F2A4D" />
-            </Marker>
-          ))}
+          flights
+            .filter((f: any) => Number.isFinite(Number(f.latitude)) && Number.isFinite(Number(f.longitude)))
+            .map((f: any) => (
+              <Marker
+                key={f.icao24}
+                coordinate={{ latitude: Number(f.latitude), longitude: Number(f.longitude) }}
+                title={f.callsign}
+                description={`${f.baro_altitude ?? "?"} m · ${f.velocity ?? "?"} m/s`}
+                rotation={Number.isFinite(Number(f.true_track)) ? Number(f.true_track) : 0}
+                flat
+              >
+                <Ionicons name="airplane" size={18} color="#0F2A4D" />
+              </Marker>
+            ))}
 
         {layer === "strategic" &&
           STRATEGIC_SITES.map((s) => {

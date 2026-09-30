@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Platform, Alert } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
@@ -9,6 +9,23 @@ import { Theme } from "../theme";
 import { api, ApiError } from "../api/client";
 import { useAllCasesIntelligence } from "../hooks/useAllCasesIntelligence";
 import { OfflineBanner } from "../components/OfflineBanner";
+import { getJson, setJson } from "../utils/deviceStorage";
+
+interface PrognoseEntry {
+  id: string;
+  text: string;
+  generatedAt: number;
+  auto: boolean;
+  caseCount: number;
+}
+
+const HISTORY_KEY = "oraculo_prognose_history_v1";
+const LAST_AUTO_KEY = "oraculo_prognose_last_auto_v1";
+const MAX_HISTORY = 10;
+
+function todayKey() {
+  return new Date().toISOString().slice(0, 10);
+}
 
 // Visão de comando: cruza o "command" (risco, fase, tarefas) de TODOS os
 // casos visíveis de uma vez, em vez de olhar caso por caso. É a diferença
@@ -47,6 +64,19 @@ export default function CommandCenterScreen() {
 
   const [generatingBriefing, setGeneratingBriefing] = useState(false);
   const [briefing, setBriefing] = useState<string | null>(null);
+  const [history, setHistory] = useState<PrognoseEntry[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
+  const [autoChecked, setAutoChecked] = useState(false);
+
+  // Histórico local do Prognose — antes cada geração se perdia ao sair da
+  // tela; agora fica salvo no dispositivo, com o resultado mais recente já
+  // exibido ao reabrir (não precisa gerar de novo pra ver o último).
+  useEffect(() => {
+    getJson<PrognoseEntry[]>(HISTORY_KEY, []).then((h) => {
+      setHistory(h);
+      if (h.length > 0) setBriefing(h[0].text);
+    });
+  }, []);
 
   // Monta um apêndice denso por caso (entidades, cronologia, hipóteses,
   // command) — tudo que já está carregado no hook compartilhado — e injeta
@@ -73,16 +103,16 @@ export default function CommandCenterScreen() {
     return parts.join("\n\n");
   }
 
-  async function generateBriefing() {
+  async function generateBriefing(auto = false) {
     const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
     const recent = reports.filter((r) => (r.updatedAt || 0) >= weekAgo);
     const targetIds = (recent.length > 0 ? recent : reports).map((r) => r.id).slice(0, 15);
     if (targetIds.length === 0) {
-      Alert.alert("Sem casos", "Nenhum caso disponível pra gerar briefing.");
+      if (!auto) Alert.alert("Sem casos", "Nenhum caso disponível pra gerar briefing.");
       return;
     }
     setGeneratingBriefing(true);
-    setBriefing(null);
+    if (!auto) setBriefing(null);
     try {
       const monitorsRes = await api.listSourceMonitors().catch(() => ({ monitors: [] }));
       const monitorsContext = (monitorsRes.monitors || [])
@@ -98,12 +128,36 @@ export default function CommandCenterScreen() {
         (monitorsContext ? `\n\n## Fontes públicas monitoradas\n${monitorsContext}` : "");
       const res = await api.aiCrossCaseAssist(targetIds, instructions);
       setBriefing(res.text);
+      const entry: PrognoseEntry = {
+        id: `${Date.now()}`,
+        text: res.text,
+        generatedAt: Date.now(),
+        auto,
+        caseCount: targetIds.length,
+      };
+      setHistory((prev) => {
+        const next = [entry, ...prev].slice(0, MAX_HISTORY);
+        setJson(HISTORY_KEY, next);
+        return next;
+      });
+      if (auto) setJson(LAST_AUTO_KEY, todayKey());
     } catch (err) {
-      Alert.alert("Erro", err instanceof ApiError ? err.message : "BlindAI/Grok indisponível.");
+      if (!auto) Alert.alert("Erro", err instanceof ApiError ? err.message : "BlindAI/Grok indisponível.");
     } finally {
       setGeneratingBriefing(false);
     }
   }
+
+  // Gera Prognose sozinho uma vez por dia (quando há casos carregados) em
+  // vez de depender do usuário lembrar de apertar o botão toda vez — visão
+  // de produto: inteligência proativa, não só sob demanda.
+  useEffect(() => {
+    if (autoChecked || loading || reports.length === 0) return;
+    setAutoChecked(true);
+    getJson<string | null>(LAST_AUTO_KEY, null).then((last) => {
+      if (last !== todayKey()) generateBriefing(true);
+    });
+  }, [autoChecked, loading, reports.length]);
 
   async function exportBriefingPdf() {
     if (!briefing) return;
@@ -148,7 +202,7 @@ export default function CommandCenterScreen() {
             <StatBox theme={theme} value={totals.secret} label="Casos SECRETO" />
           </View>
 
-          <Pressable style={[styles.briefingButton, generatingBriefing && { opacity: 0.6 }]} disabled={generatingBriefing} onPress={generateBriefing}>
+          <Pressable style={[styles.briefingButton, generatingBriefing && { opacity: 0.6 }]} disabled={generatingBriefing} onPress={() => generateBriefing(false)}>
             {generatingBriefing ? <ActivityIndicator color="#fff" /> : (
               <>
                 <Ionicons name="sparkles-outline" size={15} color="#fff" />
@@ -159,12 +213,36 @@ export default function CommandCenterScreen() {
           {briefing && (
             <View style={styles.briefingCard}>
               <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-                <Text style={styles.phaseLabel}>Prognose · exige revisão humana</Text>
+                <Text style={styles.phaseLabel}>
+                  Prognose · exige revisão humana{history[0] ? ` · ${new Date(history[0].generatedAt).toLocaleString("pt-BR")}` : ""}
+                </Text>
                 <Pressable onPress={exportBriefingPdf}>
                   <Ionicons name="download-outline" size={16} color={color.primary} />
                 </Pressable>
               </View>
               <Text style={{ fontSize: 13, color: color.text, lineHeight: 20 }}>{briefing}</Text>
+            </View>
+          )}
+
+          {history.length > 1 && (
+            <Pressable style={styles.historyToggle} onPress={() => setShowHistory((v) => !v)}>
+              <Ionicons name={showHistory ? "chevron-up" : "chevron-down"} size={14} color={color.textMuted} />
+              <Text style={styles.historyToggleText}>
+                {showHistory ? "Ocultar histórico" : `Ver histórico (${history.length - 1} anterior(es))`}
+              </Text>
+            </Pressable>
+          )}
+          {showHistory && (
+            <View style={{ gap: theme.space.sm, marginBottom: theme.space.xxl }}>
+              {history.slice(1).map((h) => (
+                <Pressable key={h.id} style={styles.historyCard} onPress={() => setBriefing(h.text)}>
+                  <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                    <Text style={styles.historyDate}>{new Date(h.generatedAt).toLocaleString("pt-BR")}</Text>
+                    {h.auto && <Text style={styles.historyAuto}>automático</Text>}
+                  </View>
+                  <Text style={styles.historySnippet} numberOfLines={2}>{h.text}</Text>
+                </Pressable>
+              ))}
             </View>
           )}
 
@@ -235,5 +313,11 @@ function buildStyles(theme: Theme) {
     caseMeta: { fontSize: 11, color: color.textFaint, marginTop: 3 },
     overdueBadge: { backgroundColor: color.dangerTint, borderRadius: 8, paddingVertical: 5, paddingHorizontal: 9 },
     overdueBadgeText: { fontSize: 10.5, color: color.danger, fontWeight: "700" },
+    historyToggle: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: space.md, alignSelf: "flex-start" },
+    historyToggleText: { fontSize: 12, color: color.textMuted, fontWeight: "600" },
+    historyCard: { backgroundColor: color.surface, borderRadius: radius.lg, padding: 12, ...theme.shadow.card },
+    historyDate: { fontSize: 10.5, color: color.textFaint, fontWeight: "600" },
+    historyAuto: { fontSize: 10, color: color.primary, fontWeight: "700" },
+    historySnippet: { fontSize: 11.5, color: color.textMuted, marginTop: 5, lineHeight: 16 },
   });
 }

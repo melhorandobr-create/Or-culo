@@ -8,9 +8,32 @@ export type MapLayer = "cases" | "sources" | "flights" | "strategic";
 // — antes o mapa fazia sua própria busca de listReports(), uma terceira
 // cópia da mesma requisição (Dashboard e as telas de sistema já tinham
 // cada uma a sua). Agora ganha cache offline de graça também.
+// Coordenada só é válida se virar um número finito dentro do range
+// geográfico real — casos antigos (schema pré-CaseEntity) às vezes têm
+// lat/lng como string vazia, texto ou NaN, que passavam pelo filtro
+// antigo (só checava != null) e chegavam até o Marker nativo. No Android,
+// react-native-maps trava a view nativa inteira ao receber uma coordenada
+// não-finita: a tela fica em branco e o app para de responder até forçar
+// o fechamento — exatamente o crash que motivou este filtro mais rígido.
+function isValidCoordinate(lat: unknown, lng: unknown): boolean {
+  const la = Number(lat);
+  const lo = Number(lng);
+  return Number.isFinite(la) && Number.isFinite(lo) && la >= -90 && la <= 90 && lo >= -180 && lo <= 180;
+}
+
 export function useTerritorialMapData(layer: MapLayer) {
   const { loading, error, reports: allReports, offline, cachedAt } = useCases();
-  const reports = useMemo(() => allReports.filter((r) => r.operationLatitude != null && r.operationLongitude != null), [allReports]);
+  const reports = useMemo(
+    () =>
+      allReports
+        .filter((r) => isValidCoordinate(r.operationLatitude, r.operationLongitude))
+        .map((r) => ({
+          ...r,
+          operationLatitude: Number(r.operationLatitude),
+          operationLongitude: Number(r.operationLongitude),
+        })),
+    [allReports]
+  );
 
   const [flights, setFlights] = useState<any[]>([]);
   const [flightsError, setFlightsError] = useState<string | null>(null);
