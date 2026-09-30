@@ -102,6 +102,25 @@ export interface Report {
   canRequestAccess?: boolean;
   createdAt?: number;
   updatedAt?: number;
+  protocolNumber?: string;
+  // Campos confirmados por inspeção direta dos 12 casos reais já existentes
+  // no banco (ARCO, TUCANO, LASTRO...), via script de diagnóstico rodado no
+  // servidor em 2026-09-24 — schema mais rico que o usado nos casos que eu
+  // semeei, então precisa ser exibido também para esses casos aparecerem
+  // com conteúdo (e não só o título) no app.
+  subject?: string;
+  eventDate?: string | number;
+  location?: string;
+  sourceReliability?: string;
+  informationCredibility?: string;
+  recommendations?: string;
+  tags?: string[] | string;
+  sourceNotes?: string;
+  legalBasis?: string;
+  mapNotes?: string;
+  operative?: string;
+  parecer?: string;
+  authorizationReference?: string;
   [key: string]: unknown;
 }
 

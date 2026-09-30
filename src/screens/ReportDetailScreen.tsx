@@ -409,6 +409,9 @@ export default function ReportDetailScreen() {
         )}
 
         {report?.description ? <Text style={styles.summary}>{String(report.description)}</Text> : null}
+        {report?.summary ? <Text style={styles.summary}>{String(report.summary)}</Text> : null}
+
+        {report && <ReportDossier theme={theme} report={report} />}
 
         {command && (
           <View style={styles.commandCard}>
@@ -507,6 +510,61 @@ export default function ReportDetailScreen() {
           )}
         </View>
       </ScrollView>
+    </View>
+  );
+}
+
+// Casos criados antes desta reconstrução (ARCO, TUCANO, LASTRO...) usam um
+// schema mais rico, com o conteúdo em campos soltos no próprio relatório em
+// vez de nos registros de cronologia/hipótese/entidade separados. Sem isso,
+// esses casos aparecem só com título e nada mais no app.
+const DOSSIER_FIELDS: Array<[keyof Report, string]> = [
+  ["subject", "Assunto"],
+  ["location", "Local"],
+  ["eventDate", "Data do evento"],
+  ["sourceReliability", "Confiabilidade da fonte"],
+  ["informationCredibility", "Credibilidade da informação"],
+  ["body", "Relato"],
+  ["confirmedFacts", "Fatos confirmados"],
+  ["hypotheses", "Hipóteses"],
+  ["informationGaps", "Lacunas de informação"],
+  ["recommendations", "Recomendações"],
+  ["sourceNotes", "Notas de fonte"],
+  ["legalBasis", "Base legal"],
+  ["authorizationReference", "Referência de autorização"],
+  ["mapNotes", "Notas do mapa"],
+  ["tags", "Tags"],
+  ["operative", "Operativo responsável"],
+  ["parecer", "Parecer"],
+  // Alguns casos antigos guardam entidades/relacionamentos como campo solto
+  // no relatório em vez de registros próprios (aba "Entidades" cobre o
+  // segundo caso) — mostra os dois pra não perder conteúdo de nenhum jeito.
+  ["entities", "Entidades (registradas no caso)"],
+  ["relationships", "Relacionamentos"],
+];
+
+function ReportDossier({ theme, report }: { theme: Theme; report: Report }) {
+  const { color } = theme;
+  const entries = DOSSIER_FIELDS.map(([key, label]) => {
+    const raw = report[key];
+    if (raw == null || raw === "") return null;
+    const value = Array.isArray(raw) ? raw.join(", ") : typeof raw === "object" ? JSON.stringify(raw) : String(raw);
+    if (!value) return null;
+    return { label, value };
+  }).filter(Boolean) as Array<{ label: string; value: string }>;
+
+  if (entries.length === 0) return null;
+
+  return (
+    <View style={{ marginTop: theme.space.lg, gap: 12 }}>
+      {entries.map((e) => (
+        <View key={e.label}>
+          <Text style={{ fontSize: 10.5, fontWeight: "700", color: color.textFaint, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 3 }}>
+            {e.label}
+          </Text>
+          <Text style={{ fontSize: 13, color: color.text, lineHeight: 19 }}>{e.value}</Text>
+        </View>
+      ))}
     </View>
   );
 }
