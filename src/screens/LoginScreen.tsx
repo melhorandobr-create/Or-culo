@@ -15,6 +15,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useTheme } from "../contexts/ThemeContext";
 import { Theme } from "../theme";
 import { ApiError } from "../api/client";
+import { OraculoWordmark } from "../components/OraculoLogo";
 
 export default function LoginScreen() {
   const { login, submitMfaChallenge, cancelMfaChallenge, mfaChallenge, sessionExpired } =
@@ -72,7 +73,7 @@ export default function LoginScreen() {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
         <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-          <Text style={styles.logo}>ORÁCULO</Text>
+          <View style={{ alignItems: "center", marginBottom: 4 }}><OraculoWordmark size={40} textSize={30} /></View>
           <Text style={styles.subtitle}>Verificação em duas etapas</Text>
 
           <View style={styles.mfaTabs}>
@@ -160,7 +161,7 @@ export default function LoginScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.logo}>ORÁCULO</Text>
+        <View style={{ alignItems: "center", marginBottom: 4 }}><OraculoWordmark size={40} textSize={30} /></View>
         <Text style={styles.subtitle}>Acesso institucional seguro</Text>
 
         <TextInput

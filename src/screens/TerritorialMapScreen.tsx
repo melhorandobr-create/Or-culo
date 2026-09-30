@@ -102,7 +102,7 @@ export default function TerritorialMapScreen() {
                 key={s.id}
                 coordinate={{ latitude: s.latitude, longitude: s.longitude }}
                 title={s.name}
-                description={s.description}
+                description={s.address ? `${s.address} — ${s.description}` : s.description}
               >
                 <View style={[styles.strategicPin, { backgroundColor: meta.color }]}>
                   <Ionicons name={meta.icon as any} size={13} color="#fff" />
@@ -238,7 +238,15 @@ export default function TerritorialMapScreen() {
                       <View style={[styles.dot, { backgroundColor: meta.color }]} />
                       <View style={{ flex: 1 }}>
                         <Text style={styles.caseRowTitle} numberOfLines={1}>{s.name}</Text>
-                        <Text style={styles.flightMeta}>{meta.label} · {s.state}</Text>
+                        <Text style={styles.flightMeta}>
+                          {meta.label} · {s.state}
+                          {!s.verified ? " · coordenada aproximada" : ""}
+                        </Text>
+                        {s.address && (
+                          <Text style={styles.flightMeta} numberOfLines={2}>
+                            {s.address}
+                          </Text>
+                        )}
                       </View>
                     </View>
                   );

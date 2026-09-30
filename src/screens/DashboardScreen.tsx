@@ -18,6 +18,7 @@ import { usePrognose } from "../hooks/usePrognose";
 import { Theme } from "../theme";
 import { api } from "../api/client";
 import { OfflineBanner } from "../components/OfflineBanner";
+import { OraculoWordmark } from "../components/OraculoLogo";
 
 interface ExtraStats {
   sources: number;
@@ -98,10 +99,7 @@ export default function DashboardScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <View style={styles.logoDot}>
-            <Ionicons name="compass-outline" size={15} color="#fff" />
-          </View>
-          <Text style={styles.logoText}>Oráculo</Text>
+          <OraculoWordmark size={30} textSize={17} textColor={color.text} />
         </View>
         <View style={styles.headerRight}>
           <Pressable style={styles.bellButton} onPress={() => navigation.navigate("IntelligenceHub")}>

@@ -9,6 +9,7 @@ import { Theme } from "../theme";
 import { useAllCasesIntelligence } from "../hooks/useAllCasesIntelligence";
 import { usePrognose } from "../hooks/usePrognose";
 import { OfflineBanner } from "../components/OfflineBanner";
+import { wrapPdfHtml } from "../utils/pdfBranding";
 
 // Visão de comando: cruza o "command" (risco, fase, tarefas) de TODOS os
 // casos visíveis de uma vez, em vez de olhar caso por caso. É a diferença
@@ -58,10 +59,12 @@ export default function CommandCenterScreen() {
 
   async function exportBriefingPdf() {
     if (!briefing) return;
-    const html = `<html><body style="font-family: -apple-system, sans-serif; padding: 24px; white-space: pre-wrap;">
-      <h1>Briefing — ${new Date().toLocaleDateString("pt-BR")}</h1>
-      <p>${briefing.replace(/</g, "&lt;")}</p>
-    </body></html>`;
+    const html = wrapPdfHtml(
+      `<h1 style="margin-top:0;">Prognose — ${new Date().toLocaleDateString("pt-BR")}</h1>
+       <p style="white-space:pre-wrap;">${briefing.replace(/</g, "&lt;")}</p>
+       <p style="font-size:11px; color:#767676; font-style:italic;">Gerado por IA a partir dos casos monitorados — exige revisão humana antes de qualquer decisão.</p>`,
+      "Prognose — Central de Comando"
+    );
     try {
       if (Platform.OS === "web") {
         await Print.printAsync({ html });

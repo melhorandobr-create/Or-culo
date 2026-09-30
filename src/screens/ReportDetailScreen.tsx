@@ -26,6 +26,7 @@ import { AudioEvidencePlayer } from "../components/AudioEvidencePlayer";
 import { DocumentOcrCapture } from "../components/DocumentOcrCapture";
 import { captureForensicMetadata } from "../utils/forensicMetadata";
 import { deleteOriginalAsset } from "../utils/mediaLibrarySafe";
+import { wrapPdfHtml } from "../utils/pdfBranding";
 import {
   RELIABILITY_CODES,
   CREDIBILITY_CODES,
@@ -212,8 +213,8 @@ export default function ReportDetailScreen() {
   async function handleExportPdf() {
     if (!report) return;
     try {
-      const html = `
-        <html><body style="font-family: -apple-system, sans-serif; padding: 24px;">
+      const html = wrapPdfHtml(
+        `
           <h1>${escapeHtml(report.title || "Caso sem título")}</h1>
           <p><strong>Protocolo:</strong> ${escapeHtml((report as any).protocolNumber || "")}</p>
           <p><strong>Classificação:</strong> ${escapeHtml(report.classification || "")}</p>
@@ -223,7 +224,9 @@ export default function ReportDetailScreen() {
           <ul>${timeline.map((e) => `<li>${escapeHtml(e.title || "")} — ${e.occurredAt ? new Date(e.occurredAt).toLocaleDateString("pt-BR") : ""}</li>`).join("")}</ul>
           <h2>Hipóteses</h2>
           <ul>${hypotheses.map((h) => `<li>${escapeHtml(h.statement || "")}</li>`).join("")}</ul>
-        </body></html>`;
+        `,
+        "Relatório de caso"
+      );
       if (Platform.OS === "web") {
         // expo-sharing não existe na web — abre o diálogo de impressão do
         // navegador, onde "Salvar como PDF" é uma opção nativa do sistema.

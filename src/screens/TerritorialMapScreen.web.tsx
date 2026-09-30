@@ -113,6 +113,12 @@ export default function TerritorialMapScreenWeb() {
                   <Popup>
                     <strong>{s.name}</strong>
                     <br />
+                    {s.address && (
+                      <>
+                        {s.address}
+                        <br />
+                      </>
+                    )}
                     {s.description}
                   </Popup>
                 </Marker>
@@ -246,7 +252,15 @@ export default function TerritorialMapScreenWeb() {
                   <View style={[styles.dot, { backgroundColor: meta.color }]} />
                   <View style={{ flex: 1 }}>
                     <Text style={styles.caseRowTitle} numberOfLines={1}>{s.name}</Text>
-                    <Text style={styles.flightMeta}>{meta.label} · {s.state}</Text>
+                    <Text style={styles.flightMeta}>
+                      {meta.label} · {s.state}
+                      {!s.verified ? " · coordenada aproximada" : ""}
+                    </Text>
+                    {s.address && (
+                      <Text style={styles.flightMeta} numberOfLines={2}>
+                        {s.address}
+                      </Text>
+                    )}
                   </View>
                 </View>
               );
