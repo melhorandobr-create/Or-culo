@@ -503,7 +503,7 @@ export default function ReportDetailScreen() {
           <SegButton theme={theme} active={tab === "evidence"} label="Evidências" onPress={() => setTab("evidence")} />
           <SegButton theme={theme} active={tab === "field"} label="Campo" onPress={() => setTab("field")} />
           <SegButton theme={theme} active={tab === "tasks"} label="Tarefas" onPress={() => setTab("tasks")} />
-          <SegButton theme={theme} active={tab === "ai"} label="Assistente IA" onPress={() => setTab("ai")} />
+          <SegButton theme={theme} active={tab === "ai"} label="DELPHI" onPress={() => setTab("ai")} />
           <SegButton theme={theme} active={tab === "history"} label="Histórico" onPress={() => setTab("history")} />
           {isOwner && <SegButton theme={theme} active={tab === "access"} label="Acesso" onPress={() => setTab("access")} />}
         </ScrollView>

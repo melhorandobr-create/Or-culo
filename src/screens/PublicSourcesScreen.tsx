@@ -124,7 +124,7 @@ export default function PublicSourcesScreen() {
           <View style={styles.statsRow}>
             <View style={styles.statCard}>
               <Text style={styles.statValue}>{monitors.length}</Text>
-              <Text style={styles.statLabel}>Fontes monitoradas</Text>
+              <Text style={styles.statLabel}>Coleta ativa</Text>
             </View>
             <View style={styles.statCard}>
               <Text style={[styles.statValue, { color: color.primary }]}>{newThisWeek}</Text>
@@ -135,11 +135,11 @@ export default function PublicSourcesScreen() {
           {!creating ? (
             <Pressable style={styles.primaryButton} onPress={() => setCreating(true)}>
               <Ionicons name="add" size={15} color="#fff" />
-              <Text style={styles.primaryButtonText}>Novo monitoramento</Text>
+              <Text style={styles.primaryButtonText}>Nova coleta</Text>
             </Pressable>
           ) : (
             <View style={styles.formCard}>
-              <Text style={styles.formTitle}>Novo monitoramento</Text>
+              <Text style={styles.formTitle}>Nova coleta</Text>
               <View style={styles.kindRow}>
                 {(["company", "court", "url"] as Kind[]).map((k) => (
                   <Pressable key={k} style={[styles.kindChip, kind === k && styles.kindChipActive]} onPress={() => setKind(k)}>
@@ -198,7 +198,7 @@ export default function PublicSourcesScreen() {
             </View>
           )}
 
-          <Text style={styles.sectionLabel}>Monitoramentos</Text>
+          <Text style={styles.sectionLabel}>Coletas</Text>
           <View style={{ gap: theme.space.md }}>
             {monitors.length === 0 ? (
               <Text style={styles.emptyText}>Nenhuma fonte acompanhada ainda.</Text>
@@ -207,7 +207,7 @@ export default function PublicSourcesScreen() {
                 <View key={m.id} style={styles.card}>
                   <Text style={styles.query}>{m.query}</Text>
                   <Text style={styles.meta}>
-                    {m.kind || "Monitoramento"} {m.purpose ? `· ${m.purpose}` : ""}
+                    {m.kind || "Coleta"} {m.purpose ? `· ${m.purpose}` : ""}
                   </Text>
                   {m.tribunal ? (
                     <View style={styles.tribunalBox}>

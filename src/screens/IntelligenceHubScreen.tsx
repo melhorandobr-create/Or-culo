@@ -43,7 +43,7 @@ export default function IntelligenceHubScreen() {
           icon="speedometer-outline"
           iconColor={color.primary}
           tint={color.infoTint}
-          title="Central de comando"
+          title="C2"
           subtitle="Risco, fase, tarefas e Prognose (parecer + previsão)"
           badge={alerts.overdueTasks > 0 ? alerts.overdueTasks : undefined}
           onPress={() => navigation.navigate("CommandCenter")}
@@ -53,7 +53,7 @@ export default function IntelligenceHubScreen() {
           icon="git-network-outline"
           iconColor={color.warning}
           tint={color.warningTint}
-          title="Correlação entre casos"
+          title="NODAL"
           subtitle="Entidades repetidas e possíveis duplicatas"
           badge={alerts.nearDuplicates > 0 ? alerts.nearDuplicates : undefined}
           onPress={() => navigation.navigate("Correlation")}
@@ -63,7 +63,7 @@ export default function IntelligenceHubScreen() {
           icon="time-outline"
           iconColor={color.success}
           tint={color.successTint}
-          title="Linha do tempo geral"
+          title="CRONOS"
           subtitle="Todos os eventos, de todos os casos, em ordem"
           onPress={() => navigation.navigate("SystemTimeline")}
         />
@@ -72,7 +72,7 @@ export default function IntelligenceHubScreen() {
           icon="sparkles-outline"
           iconColor={color.primary}
           tint={color.infoTint}
-          title="Assistente IA — múltiplos casos"
+          title="DELPHI"
           subtitle="Pergunte algo que cruze vários casos ao mesmo tempo"
           onPress={() => navigation.navigate("CrossCaseAi")}
         />
@@ -81,7 +81,7 @@ export default function IntelligenceHubScreen() {
           icon="eye-outline"
           iconColor={color.danger}
           tint={color.dangerTint}
-          title="Lista de vigilância"
+          title="SENTINELA"
           subtitle="Termos de interesse cruzados com todos os casos"
           badge={alerts.watchlistHits > 0 ? alerts.watchlistHits : undefined}
           onPress={() => navigation.navigate("Watchlist")}

@@ -142,7 +142,7 @@ export default function DashboardScreen() {
           <StatCard theme={theme} icon="location-outline" value={stats.pins} label="GEO-REFS" tint={color.infoTint} iconColor={color.primary} />
           <StatCard theme={theme} icon="radio-outline" value={stats.sources} label="OSINT ativo" tint={color.warningTint} iconColor={color.warning} />
           <StatCard theme={theme} icon="time-outline" value={stats.pending} label="Fila de acesso" tint={color.dangerTint} iconColor={color.danger} />
-          <StatCard theme={theme} icon="shield-outline" value={stats.secret} label="Nível-S" tint={color.successTint} iconColor={color.success} />
+          <StatCard theme={theme} icon="eye-outline" value={alerts.watchlistHits} label="SENTINELA" tint={color.successTint} iconColor={color.success} />
         </View>
 
         <Pressable style={styles.primaryButton} onPress={() => navigation.navigate("ReportDetail", { mode: "create" })}>
