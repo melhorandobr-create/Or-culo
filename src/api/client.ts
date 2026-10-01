@@ -183,11 +183,29 @@ export interface Evidence {
   createdAt?: number;
 }
 
+export interface SourceDebriefing {
+  id: string;
+  reportId: string;
+  entityId: string;
+  occurredAt: number;
+  objective?: string;
+  freeAccountSummary: string;
+  reliabilityCode: string;
+  credibilityCode: string;
+  followUpNeeded?: boolean;
+  nextContactPlan?: string;
+  riskNotes?: string;
+  conductedBy?: string;
+  createdAt?: number;
+  [key: string]: unknown;
+}
+
 export interface CaseIntelligence {
   entities: unknown[];
   relationships: unknown[];
   timeline: unknown[];
   hypotheses: unknown[];
+  debriefings: SourceDebriefing[];
   command: {
     riskLevel: string;
     operationPhase: string;
@@ -511,6 +529,21 @@ export const api = {
   // de evidências, hipóteses em aberto). Não existem GETs separados.
   async getCaseIntelligence(reportId: string) {
     return request<CaseIntelligence>(`/case-intelligence/${reportId}`);
+  },
+
+  async createDebriefing(reportId: string, fields: {
+    entityId: string; occurredAt?: number; objective?: string; freeAccountSummary: string;
+    reliabilityCode: string; credibilityCode: string; followUpNeeded?: boolean;
+    nextContactPlan?: string; riskNotes?: string;
+  }) {
+    return request<{ debriefing: SourceDebriefing }>(`/case-intelligence/${reportId}/debriefings`, {
+      method: "POST",
+      body: JSON.stringify(fields),
+    });
+  },
+
+  async deleteDebriefing(reportId: string, id: string) {
+    return request<void>(`/case-intelligence/${reportId}/debriefings/${id}`, { method: "DELETE" });
   },
 
   async createCaseEntity(reportId: string, fields: { name: string; type: string; aliases?: string; notes?: string; source?: string; confidence?: string }) {

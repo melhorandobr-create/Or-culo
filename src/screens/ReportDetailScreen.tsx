@@ -67,6 +67,7 @@ export default function ReportDetailScreen() {
   const [hypotheses, setHypotheses] = useState<any[]>([]);
   const [entities, setEntities] = useState<any[]>([]);
   const [relationships, setRelationships] = useState<any[]>([]);
+  const [debriefings, setDebriefings] = useState<any[]>([]);
   const [command, setCommand] = useState<any>(null);
   const [tasks, setTasks] = useState<any[]>([]);
   const [tab, setTab] = useState<Tab>("timeline");
@@ -105,6 +106,7 @@ export default function ReportDetailScreen() {
       setHypotheses(intelRes.hypotheses || []);
       setEntities((intelRes as any).entities || []);
       setRelationships((intelRes as any).relationships || []);
+      setDebriefings((intelRes as any).debriefings || []);
       setCommand((intelRes as any).command || null);
       setTasks((tasksRes as any).tasks || []);
     } catch (err) {
@@ -513,7 +515,7 @@ export default function ReportDetailScreen() {
         )}
 
         {tab === "entities" && (
-          <EntitiesTab theme={theme} reportId={reportId!} entities={entities} relationships={relationships} isOwner={isOwner} onCreated={load} />
+          <EntitiesTab theme={theme} reportId={reportId!} entities={entities} relationships={relationships} debriefings={debriefings} isOwner={isOwner} onCreated={load} />
         )}
 
         {tab === "evidence" && (
@@ -737,6 +739,7 @@ function EntitiesTab({
   reportId,
   entities,
   relationships,
+  debriefings,
   isOwner,
   onCreated,
 }: {
@@ -744,6 +747,7 @@ function EntitiesTab({
   reportId: string;
   entities: any[];
   relationships: any[];
+  debriefings: any[];
   isOwner: boolean;
   onCreated: () => void;
 }) {
@@ -889,6 +893,16 @@ function EntitiesTab({
                 {e.source ? ` · ${e.source}` : ""}
               </Text>
               {e.notes ? <Text style={stylesShared.hypothesisDesc}>{e.notes}</Text> : null}
+              {e.type === "PESSOA" && (
+                <PersonDebriefings
+                  theme={theme}
+                  reportId={reportId}
+                  entityId={e.id}
+                  debriefings={debriefings.filter((d: any) => d.entityId === e.id)}
+                  isOwner={isOwner}
+                  onCreated={onCreated}
+                />
+              )}
             </View>
           ))}
         </View>
@@ -917,6 +931,136 @@ function EntitiesTab({
               </View>
             ))}
           </View>
+        </View>
+      )}
+    </View>
+  );
+}
+
+function PersonDebriefings({
+  theme,
+  reportId,
+  entityId,
+  debriefings,
+  isOwner,
+  onCreated,
+}: {
+  theme: Theme;
+  reportId: string;
+  entityId: string;
+  debriefings: any[];
+  isOwner: boolean;
+  onCreated: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [objective, setObjective] = useState("");
+  const [freeAccountSummary, setFreeAccountSummary] = useState("");
+  const [reliability, setReliability] = useState<ReliabilityCode>("C");
+  const [credibility, setCredibility] = useState<CredibilityCode>("3");
+  const [followUpNeeded, setFollowUpNeeded] = useState(false);
+  const [nextContactPlan, setNextContactPlan] = useState("");
+  const [riskNotes, setRiskNotes] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  async function submit() {
+    if (!freeAccountSummary.trim()) return;
+    setSaving(true);
+    try {
+      await api.createDebriefing(reportId, {
+        entityId,
+        objective: objective.trim(),
+        freeAccountSummary: freeAccountSummary.trim(),
+        reliabilityCode: reliability,
+        credibilityCode: credibility,
+        followUpNeeded,
+        nextContactPlan: nextContactPlan.trim(),
+        riskNotes: riskNotes.trim(),
+      });
+      setObjective("");
+      setFreeAccountSummary("");
+      setNextContactPlan("");
+      setRiskNotes("");
+      setFollowUpNeeded(false);
+      setOpen(false);
+      onCreated();
+    } catch (err) {
+      Alert.alert("Erro", err instanceof ApiError ? err.message : "Não foi possível registrar o debriefing.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <View style={{ marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: "#EEF1F5" }}>
+      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+        <Text style={{ fontSize: 10.5, fontWeight: "700", color: "#98A2B3", textTransform: "uppercase", letterSpacing: 0.5 }}>
+          Debriefings ({debriefings.length})
+        </Text>
+        {isOwner && (
+          <Pressable onPress={() => setOpen((v) => !v)}>
+            <Text style={{ fontSize: 11.5, fontWeight: "700", color: theme.color.primary }}>
+              {open ? "Fechar" : "+ Novo"}
+            </Text>
+          </Pressable>
+        )}
+      </View>
+
+      {open && (
+        <View style={{ marginTop: 8, gap: 8 }}>
+          <TextInputLike theme={theme} value={objective} onChangeText={setObjective} placeholder="Objetivo (o que buscava saber)" />
+          <TextInputLike theme={theme} value={freeAccountSummary} onChangeText={setFreeAccountSummary} placeholder="Relato livre da fonte (resumo)" multiline />
+
+          <Text style={{ fontSize: 10, fontWeight: "700", color: "#98A2B3", textTransform: "uppercase", letterSpacing: 0.5 }}>
+            Confiabilidade da fonte
+          </Text>
+          <PillRow theme={theme} options={RELIABILITY_CODES.map((r) => r.code)} value={reliability}
+            onChange={(v) => setReliability(v as ReliabilityCode)} />
+
+          <Text style={{ fontSize: 10, fontWeight: "700", color: "#98A2B3", textTransform: "uppercase", letterSpacing: 0.5 }}>
+            Credibilidade da informação
+          </Text>
+          <PillRow theme={theme} options={CREDIBILITY_CODES.map((c) => c.code)} value={credibility}
+            onChange={(v) => setCredibility(v as CredibilityCode)} />
+
+          <TextInputLike theme={theme} value={nextContactPlan} onChangeText={setNextContactPlan} placeholder="Plano de próximo contato (opcional)" />
+          <TextInputLike theme={theme} value={riskNotes} onChangeText={setRiskNotes} placeholder="Notas de segurança da fonte (opcional)" multiline />
+
+          <Pressable onPress={() => setFollowUpNeeded((v) => !v)} style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <View style={{
+              width: 18, height: 18, borderRadius: 4, borderWidth: 1.5,
+              borderColor: followUpNeeded ? theme.color.primary : "#CBD2D9",
+              backgroundColor: followUpNeeded ? theme.color.primary : "transparent",
+            }} />
+            <Text style={{ fontSize: 12, color: theme.color.text }}>Precisa de acompanhamento futuro</Text>
+          </Pressable>
+
+          <Pressable style={[stylesShared.primaryButton, saving && { opacity: 0.6 }]} disabled={saving} onPress={submit}>
+            {saving ? <ActivityIndicator color="#fff" /> : <Text style={stylesShared.primaryButtonText}>Salvar debriefing</Text>}
+          </Pressable>
+        </View>
+      )}
+
+      {debriefings.length > 0 && (
+        <View style={{ marginTop: 8, gap: 8 }}>
+          {debriefings.map((d: any) => (
+            <View key={d.id} style={{ backgroundColor: "#F8F9FB", borderRadius: 10, padding: 10 }}>
+              <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                <Text style={{ fontSize: 11, fontWeight: "700", color: theme.color.text }}>
+                  {new Date(d.occurredAt).toLocaleDateString("pt-BR")}
+                </Text>
+                <Text style={{ fontSize: 10.5, fontWeight: "700", color: theme.color.primary }}>
+                  {admiraltyLabel(d.reliabilityCode, d.credibilityCode)}
+                </Text>
+              </View>
+              {d.objective ? <Text style={{ fontSize: 11, color: "#64748B", marginTop: 2 }}>{d.objective}</Text> : null}
+              <Text style={{ fontSize: 11.5, color: theme.color.text, marginTop: 4 }}>{d.freeAccountSummary}</Text>
+              {d.followUpNeeded ? (
+                <Text style={{ fontSize: 10.5, color: theme.color.warning, marginTop: 4, fontWeight: "700" }}>
+                  Acompanhamento pendente
+                </Text>
+              ) : null}
+            </View>
+          ))}
         </View>
       )}
     </View>
