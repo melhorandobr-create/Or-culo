@@ -57,7 +57,7 @@ export default function CrossCaseAiScreen() {
       const res = await api.aiCrossCaseAssist(Array.from(selected), finalQuestion);
       setResult(res);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "BlindAI/Grok indisponível.");
+      setError(err instanceof ApiError ? err.message : "DELPHI indisponível.");
     } finally {
       setAsking(false);
     }
@@ -74,7 +74,7 @@ export default function CrossCaseAiScreen() {
 
       <ScrollView contentContainerStyle={styles.scroll}>
         <Text style={styles.subtitle}>
-          Selecione os casos relevantes e pergunte algo que cruze todos eles. O BlindAI (Grok) responde só com base no
+          Selecione os casos relevantes e pergunte algo que cruze todos eles. O DELPHI responde só com base no
           que está escrito nos casos escolhidos, citando de qual caso vem cada elemento.
         </Text>
 

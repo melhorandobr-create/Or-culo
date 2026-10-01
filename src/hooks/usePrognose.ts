@@ -98,7 +98,7 @@ export function usePrognose() {
         if (auto) setJson(LAST_AUTO_KEY, todayKey());
         return { ok: true as const, entry };
       } catch (err) {
-        return { ok: false as const, error: err instanceof ApiError ? err.message : "BlindAI/Grok indisponível." };
+        return { ok: false as const, error: err instanceof ApiError ? err.message : "DELPHI indisponível." };
       } finally {
         setGenerating(false);
       }

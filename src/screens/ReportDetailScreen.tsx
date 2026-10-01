@@ -626,9 +626,13 @@ function ReportDossier({ theme, report }: { theme: Theme; report: Report }) {
 
 function CommandStat({ label, value }: { label: string; value: string }) {
   return (
-    <View style={{ flex: 1 }}>
-      <Text style={{ fontSize: 15, fontWeight: "700", color: "#1B4B8F" }}>{value}</Text>
-      <Text style={{ fontSize: 10, color: "#64748B", marginTop: 2 }}>{label}</Text>
+    <View style={{ flex: 1, minWidth: 0 }}>
+      <Text style={{ fontSize: 13, fontWeight: "700", color: "#1B4B8F" }} numberOfLines={1} ellipsizeMode="tail">
+        {value}
+      </Text>
+      <Text style={{ fontSize: 10, color: "#64748B", marginTop: 2 }} numberOfLines={1}>
+        {label}
+      </Text>
     </View>
   );
 }
@@ -1263,7 +1267,7 @@ function AiAssistantTab({ theme, reportId, isOwner }: { theme: Theme; reportId: 
       const res = await api.aiAssist(reportId, mode, includeSensitive);
       setResult(res);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "BlindAI/Grok indisponível.");
+      setError(err instanceof ApiError ? err.message : "DELPHI indisponível.");
     } finally {
       setLoading(false);
     }
@@ -1280,7 +1284,7 @@ function AiAssistantTab({ theme, reportId, isOwner }: { theme: Theme; reportId: 
   return (
     <View style={{ marginTop: theme.space.xl, gap: 10 }}>
       <Text style={{ fontSize: 11.5, color: "#64748B", lineHeight: 17 }}>
-        Envia um recorte deste caso ao BlindAI (Grok) para análise assistida. CPF, CNPJ e e-mails são suprimidos automaticamente,
+        Envia um recorte deste caso ao DELPHI para análise assistida. CPF, CNPJ e e-mails são suprimidos automaticamente,
         a menos que você libere abaixo. O texto gerado exige revisão humana antes de qualquer uso formal.
       </Text>
 
@@ -1612,7 +1616,7 @@ function buildStyles(theme: Theme) {
     statusChipText: { fontSize: 11, fontWeight: "700", color: color.textMuted },
     statusChipTextActive: { color: "#fff" },
     summary: { fontSize: 13, color: color.textMuted, marginTop: 14, lineHeight: 20 },
-    commandCard: { flexDirection: "row", backgroundColor: color.surface, borderRadius: radius.lg, padding: 14, marginTop: space.lg, ...theme.shadow.card },
+    commandCard: { flexDirection: "row", gap: 6, backgroundColor: color.surface, borderRadius: radius.lg, padding: 14, marginTop: space.lg, ...theme.shadow.card },
     segmented: { flexDirection: "row", backgroundColor: "#EEF1F5", padding: 4, borderRadius: radius.md + 1, marginTop: space.xl },
     emptyText: { fontSize: 13, color: color.textFaint, textAlign: "center", paddingVertical: 24 },
     card: { backgroundColor: color.surface, borderRadius: radius.lg, padding: 14, ...theme.shadow.card },
