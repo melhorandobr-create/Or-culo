@@ -232,6 +232,7 @@ export interface SourceMonitor {
   query?: string;
   tribunal?: string;
   purpose?: string;
+  isOwnAsset?: boolean;
   createdAt?: number;
   [key: string]: unknown;
 }
@@ -586,7 +587,7 @@ export const api = {
     return request<{ monitors: SourceMonitor[] }>("/public-data/monitors");
   },
 
-  async createSourceMonitor(fields: { kind: string; query: string; tribunal?: string; purpose?: string }) {
+  async createSourceMonitor(fields: { kind: string; query: string; tribunal?: string; purpose?: string; isOwnAsset?: boolean }) {
     return request<{ monitor: SourceMonitor }>("/public-data/monitors", {
       method: "POST",
       body: JSON.stringify(fields),

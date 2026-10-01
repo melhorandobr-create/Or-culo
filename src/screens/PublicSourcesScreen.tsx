@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, TextInput, Alert } from "react-native";
+import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, TextInput, Alert, Switch } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../contexts/ThemeContext";
@@ -26,6 +26,7 @@ export default function PublicSourcesScreen() {
   const [query, setQuery] = useState("");
   const [tribunal, setTribunal] = useState("");
   const [purpose, setPurpose] = useState("");
+  const [isOwnAsset, setIsOwnAsset] = useState(false);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -65,11 +66,13 @@ export default function PublicSourcesScreen() {
         query: query.trim(),
         tribunal: kind === "court" ? tribunal.trim() : undefined,
         purpose: purpose.trim(),
+        isOwnAsset,
       });
       setCreating(false);
       setQuery("");
       setTribunal("");
       setPurpose("");
+      setIsOwnAsset(false);
       await load();
     } catch (err) {
       setFormError(err instanceof ApiError ? err.message : "Não foi possível criar o monitoramento.");
@@ -176,6 +179,19 @@ export default function PublicSourcesScreen() {
                 onChangeText={setPurpose}
                 multiline
               />
+              <Pressable style={styles.ownAssetRow} onPress={() => setIsOwnAsset((v) => !v)}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.ownAssetTitle}>Isto é um ativo próprio</Text>
+                  <Text style={styles.ownAssetSubtitle}>
+                    CNPJ/domínio seu — alerta diferenciado se algo mudar
+                  </Text>
+                </View>
+                <Switch
+                  value={isOwnAsset}
+                  onValueChange={setIsOwnAsset}
+                  trackColor={{ true: color.primary }}
+                />
+              </Pressable>
               {formError && <Text style={styles.errorText}>{formError}</Text>}
               <View style={{ flexDirection: "row", gap: 10 }}>
                 <Pressable
@@ -205,7 +221,14 @@ export default function PublicSourcesScreen() {
             ) : (
               monitors.map((m) => (
                 <View key={m.id} style={styles.card}>
-                  <Text style={styles.query}>{m.query}</Text>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                    <Text style={styles.query}>{m.query}</Text>
+                    {m.isOwnAsset && (
+                      <View style={styles.ownAssetBadge}>
+                        <Text style={styles.ownAssetBadgeText}>PRÓPRIO</Text>
+                      </View>
+                    )}
+                  </View>
                   <Text style={styles.meta}>
                     {m.kind || "Coleta"} {m.purpose ? `· ${m.purpose}` : ""}
                   </Text>
@@ -265,6 +288,11 @@ function buildStyles(theme: Theme) {
     emptyText: { color: color.textFaint, fontSize: 13 },
     card: { backgroundColor: color.surface, borderRadius: radius.xl, padding: 14, ...theme.shadow.card },
     query: { fontSize: 13.5, fontWeight: "600", color: color.text },
+    ownAssetRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 4 },
+    ownAssetTitle: { fontSize: 13, fontWeight: "600", color: color.text },
+    ownAssetSubtitle: { fontSize: 11, color: color.textFaint, marginTop: 2 },
+    ownAssetBadge: { backgroundColor: color.successTint, borderRadius: 6, paddingVertical: 2, paddingHorizontal: 7 },
+    ownAssetBadgeText: { fontSize: 9.5, color: color.success, fontWeight: "700" },
     meta: { fontSize: 11.5, color: color.textFaint, marginTop: 2 },
     tribunalBox: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: color.bg, borderRadius: 8, padding: 7, marginTop: 10 },
     tribunalText: { fontSize: 11, color: color.textMuted },
