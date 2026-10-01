@@ -1,4 +1,5 @@
 import React, { useMemo } from "react";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
@@ -15,6 +16,7 @@ function normalize(name: string) {
 }
 
 export default function CorrelationScreen() {
+  const insets = useSafeAreaInsets();
   const theme = useTheme();
   const { color } = theme;
   const styles = useMemo(() => buildStyles(theme), [theme]);
@@ -75,7 +77,7 @@ export default function CorrelationScreen() {
   );
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
         <Pressable onPress={() => navigation.goBack()} style={styles.backButton}>
           <Ionicons name="chevron-back" size={18} color={color.text} />

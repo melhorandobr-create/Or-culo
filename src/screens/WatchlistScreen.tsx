@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, ActivityIndicator } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
@@ -12,6 +13,7 @@ import { useWatchlist, matchWatchlist } from "../hooks/useWatchlist";
 // cruzamento roda toda vez que a tela carrega, contra os casos visíveis
 // pra esse usuário no momento.
 export default function WatchlistScreen() {
+  const insets = useSafeAreaInsets();
   const theme = useTheme();
   const { color } = theme;
   const styles = useMemo(() => buildStyles(theme), [theme]);
@@ -23,7 +25,7 @@ export default function WatchlistScreen() {
   const hits = useMemo(() => matchWatchlist(terms, reports, intelByReportId), [terms, reports, intelByReportId]);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
         <Pressable onPress={() => navigation.goBack()} style={styles.backButton}>
           <Ionicons name="chevron-back" size={18} color={color.text} />

@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, ActivityIndicator } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../contexts/ThemeContext";
@@ -13,6 +14,7 @@ type Kind = "company" | "sanctions" | "court" | "cep" | "whois" | "wayback";
 const REQUIRES_PURPOSE: Kind[] = ["company", "sanctions", "court"];
 
 export default function IntelligenceScreen() {
+  const insets = useSafeAreaInsets();
   const theme = useTheme();
   const { color } = theme;
   const styles = useMemo(() => buildStyles(theme), [theme]);
@@ -69,7 +71,7 @@ export default function IntelligenceScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
         <Text style={styles.title}>Inteligência</Text>
         <Text style={styles.subtitle}>Consulta avulsa em fontes públicas oficiais</Text>

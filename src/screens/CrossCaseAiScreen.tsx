@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, ActivityIndicator } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
@@ -9,6 +10,7 @@ import { useAllCasesIntelligence } from "../hooks/useAllCasesIntelligence";
 import { usePrognose } from "../hooks/usePrognose";
 
 export default function CrossCaseAiScreen() {
+  const insets = useSafeAreaInsets();
   const theme = useTheme();
   const { color } = theme;
   const styles = useMemo(() => buildStyles(theme), [theme]);
@@ -62,7 +64,7 @@ export default function CrossCaseAiScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
         <Pressable onPress={() => navigation.goBack()} style={styles.backButton}>
           <Ionicons name="chevron-back" size={18} color={color.text} />

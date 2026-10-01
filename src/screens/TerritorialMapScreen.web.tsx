@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { View, Text, StyleSheet, Pressable, ActivityIndicator } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
@@ -40,6 +41,7 @@ function BoundsWatcher({ onChange }: { onChange: (b: MapBounds) => void }) {
 }
 
 export default function TerritorialMapScreenWeb() {
+  const insets = useSafeAreaInsets();
   const theme = useTheme();
   const { color } = theme;
   const styles = useMemo(() => buildStyles(theme), [theme]);
@@ -72,7 +74,7 @@ export default function TerritorialMapScreenWeb() {
   );
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={StyleSheet.absoluteFill}>
         <MapContainer center={[-12.5, -41.7]} zoom={6} style={{ width: "100%", height: "100%" }}>
           <BoundsWatcher onChange={setBounds} />

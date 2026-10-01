@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   View,
   Text,
@@ -44,6 +45,7 @@ const ENTITY_TYPES = ["PESSOA", "EMPRESA", "VEICULO", "TELEFONE", "ENDERECO", "C
 const CONFIDENCE_OPTIONS = ["BAIXA", "MEDIA", "ALTA"];
 
 export default function ReportDetailScreen() {
+  const insets = useSafeAreaInsets();
   const theme = useTheme();
   const { color } = theme;
   const styles = useMemo(() => buildStyles(theme), [theme]);
@@ -330,7 +332,7 @@ export default function ReportDetailScreen() {
 
   if (isCreate) {
     return (
-      <View style={styles.container}>
+      <View style={[styles.container, { paddingTop: insets.top }]}>
         <Header theme={theme} onBack={() => navigation.goBack()} title="Novo caso" />
         <ScrollView contentContainerStyle={{ padding: theme.space.xl }}>
           <Text style={styles.formLabel}>Título</Text>
