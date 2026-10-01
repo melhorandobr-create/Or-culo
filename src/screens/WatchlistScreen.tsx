@@ -30,7 +30,7 @@ export default function WatchlistScreen() {
         <Pressable onPress={() => navigation.goBack()} style={styles.backButton}>
           <Ionicons name="chevron-back" size={18} color={color.text} />
         </Pressable>
-        <Text style={styles.headerTitle}>Lista de vigilância</Text>
+        <Text style={styles.headerTitle}>SENTINELA</Text>
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll}>

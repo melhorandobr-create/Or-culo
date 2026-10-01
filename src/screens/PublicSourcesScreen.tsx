@@ -112,7 +112,7 @@ export default function PublicSourcesScreen() {
         <Pressable onPress={() => navigation.goBack()} style={styles.backButton}>
           <Ionicons name="chevron-back" size={18} color={color.text} />
         </Pressable>
-        <Text style={styles.headerTitle}>Central de dados e fontes</Text>
+        <Text style={styles.headerTitle}>OSINT</Text>
       </View>
 
       {loading ? (

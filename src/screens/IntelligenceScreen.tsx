@@ -73,7 +73,7 @@ export default function IntelligenceScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
-        <Text style={styles.title}>Inteligência</Text>
+        <Text style={styles.title}>SONDA</Text>
         <Text style={styles.subtitle}>Consulta avulsa em fontes públicas oficiais</Text>
       </View>
 

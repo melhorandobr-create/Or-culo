@@ -82,7 +82,7 @@ export default function CorrelationScreen() {
         <Pressable onPress={() => navigation.goBack()} style={styles.backButton}>
           <Ionicons name="chevron-back" size={18} color={color.text} />
         </Pressable>
-        <Text style={styles.headerTitle}>Correlação entre casos</Text>
+        <Text style={styles.headerTitle}>NODAL</Text>
       </View>
 
       {loading ? (

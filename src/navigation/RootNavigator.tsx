@@ -21,6 +21,7 @@ import CrossCaseAiScreen from "../screens/CrossCaseAiScreen";
 import WatchlistScreen from "../screens/WatchlistScreen";
 import IntelligenceHubScreen from "../screens/IntelligenceHubScreen";
 import { usePushNotifications } from "../hooks/usePushNotifications";
+import { LEXICON } from "../content/lexicon";
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -46,10 +47,10 @@ function TabsScreen() {
         },
       })}
     >
-      <Tab.Screen name="Dashboard" component={DashboardScreen} options={{ title: "Início" }} />
-      <Tab.Screen name="Intelligence" component={IntelligenceScreen} options={{ title: "Inteligência" }} />
-      <Tab.Screen name="TerritorialMap" component={TerritorialMapScreen} options={{ title: "Mapa" }} />
-      <Tab.Screen name="SecurityCenter" component={SecurityCenterScreen} options={{ title: "Segurança" }} />
+      <Tab.Screen name="Dashboard" component={DashboardScreen} options={{ title: LEXICON.tabs.home }} />
+      <Tab.Screen name="Intelligence" component={IntelligenceScreen} options={{ title: LEXICON.tabs.intel }} />
+      <Tab.Screen name="TerritorialMap" component={TerritorialMapScreen} options={{ title: LEXICON.tabs.map }} />
+      <Tab.Screen name="SecurityCenter" component={SecurityCenterScreen} options={{ title: LEXICON.tabs.security }} />
     </Tab.Navigator>
   );
 }

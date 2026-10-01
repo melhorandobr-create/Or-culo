@@ -65,7 +65,7 @@ export default function CommandCenterScreen() {
       `<h1 style="margin-top:0;">Prognose — ${new Date().toLocaleDateString("pt-BR")}</h1>
        <p style="white-space:pre-wrap;">${briefing.replace(/</g, "&lt;")}</p>
        <p style="font-size:11px; color:#767676; font-style:italic;">Gerado por IA a partir dos casos monitorados — exige revisão humana antes de qualquer decisão.</p>`,
-      "Prognose — Central de Comando"
+      "Prognose — C2"
     );
     try {
       if (Platform.OS === "web") {
@@ -85,7 +85,7 @@ export default function CommandCenterScreen() {
         <Pressable onPress={() => navigation.goBack()} style={styles.backButton}>
           <Ionicons name="chevron-back" size={18} color={color.text} />
         </Pressable>
-        <Text style={styles.headerTitle}>Central de comando</Text>
+        <Text style={styles.headerTitle}>C2</Text>
       </View>
 
       {loading ? (
@@ -108,7 +108,7 @@ export default function CommandCenterScreen() {
             {generatingBriefing ? <ActivityIndicator color="#fff" /> : (
               <>
                 <Ionicons name="sparkles-outline" size={15} color="#fff" />
-                <Text style={styles.briefingButtonText}>Prognose (briefing + previsão)</Text>
+                <Text style={styles.briefingButtonText}>Prognose</Text>
               </>
             )}
           </Pressable>

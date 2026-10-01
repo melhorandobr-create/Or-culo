@@ -247,7 +247,7 @@ export default function SecurityCenterScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
-        <Text style={styles.title}>Central de segurança</Text>
+        <Text style={styles.title}>ESCUDO</Text>
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll}>

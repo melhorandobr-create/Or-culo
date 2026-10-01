@@ -56,7 +56,7 @@ export default function SystemTimelineScreen() {
         <Pressable onPress={() => navigation.goBack()} style={styles.backButton}>
           <Ionicons name="chevron-back" size={18} color={color.text} />
         </Pressable>
-        <Text style={styles.headerTitle}>Linha do tempo geral</Text>
+        <Text style={styles.headerTitle}>CRONOS</Text>
       </View>
 
       {loading ? (

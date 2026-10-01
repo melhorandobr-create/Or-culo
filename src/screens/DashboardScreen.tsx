@@ -20,6 +20,7 @@ import { Theme } from "../theme";
 import { api } from "../api/client";
 import { OfflineBanner } from "../components/OfflineBanner";
 import { OraculoWordmark } from "../components/OraculoLogo";
+import { LEXICON } from "../content/lexicon";
 
 interface ExtraStats {
   sources: number;
@@ -123,10 +124,10 @@ export default function DashboardScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={color.primary} />}
       >
         <View style={styles.titleBlock}>
-          <Text style={styles.title}>Visão geral</Text>
+          <Text style={styles.title}>SITREP</Text>
           <View style={styles.secureBadge}>
             <View style={styles.secureDot} />
-            <Text style={styles.secureBadgeText}>Enlace criptografado ativo</Text>
+            <Text style={styles.secureBadgeText}>Enlace ativo</Text>
           </View>
         </View>
 
@@ -138,10 +139,10 @@ export default function DashboardScreen() {
         )}
 
         <View style={styles.statsGrid}>
-          <StatCard theme={theme} icon="location-outline" value={stats.pins} label="Casos georreferenciados" tint={color.infoTint} iconColor={color.primary} />
-          <StatCard theme={theme} icon="radio-outline" value={stats.sources} label="Fontes monitoradas" tint={color.warningTint} iconColor={color.warning} />
-          <StatCard theme={theme} icon="time-outline" value={stats.pending} label="Pedidos pendentes" tint={color.dangerTint} iconColor={color.danger} />
-          <StatCard theme={theme} icon="shield-outline" value={stats.secret} label="Casos SECRETO" tint={color.successTint} iconColor={color.success} />
+          <StatCard theme={theme} icon="location-outline" value={stats.pins} label="GEO-REFS" tint={color.infoTint} iconColor={color.primary} />
+          <StatCard theme={theme} icon="radio-outline" value={stats.sources} label="OSINT ativo" tint={color.warningTint} iconColor={color.warning} />
+          <StatCard theme={theme} icon="time-outline" value={stats.pending} label="Fila de acesso" tint={color.dangerTint} iconColor={color.danger} />
+          <StatCard theme={theme} icon="shield-outline" value={stats.secret} label="Nível-S" tint={color.successTint} iconColor={color.success} />
         </View>
 
         <Pressable style={styles.primaryButton} onPress={() => navigation.navigate("ReportDetail", { mode: "create" })}>
@@ -151,28 +152,28 @@ export default function DashboardScreen() {
 
         <Text style={styles.moduleGridLabel}>Módulos</Text>
         <View style={styles.moduleGrid}>
-          <ModuleTile theme={theme} icon="map-outline" label="Mapa" onPress={() => navigation.navigate("TerritorialMap")} />
-          <ModuleTile theme={theme} icon="server-outline" label="Fontes" onPress={() => navigation.navigate("PublicSources")} />
+          <ModuleTile theme={theme} icon="map-outline" label={LEXICON.modules.map} onPress={() => navigation.navigate("TerritorialMap")} />
+          <ModuleTile theme={theme} icon="server-outline" label={LEXICON.modules.sources} onPress={() => navigation.navigate("PublicSources")} />
           <ModuleTile
             theme={theme}
             icon="speedometer-outline"
-            label="Comando"
+            label={LEXICON.modules.command}
             badge={alerts.overdueTasks > 0 ? alerts.overdueTasks : undefined}
             onPress={() => navigation.navigate("CommandCenter")}
           />
           <ModuleTile
             theme={theme}
             icon="git-network-outline"
-            label="Correlação"
+            label={LEXICON.modules.correlation}
             badge={alerts.nearDuplicates > 0 ? alerts.nearDuplicates : undefined}
             onPress={() => navigation.navigate("Correlation")}
           />
-          <ModuleTile theme={theme} icon="time-outline" label="Timeline" onPress={() => navigation.navigate("SystemTimeline")} />
-          <ModuleTile theme={theme} icon="sparkles-outline" label="Assistente IA" onPress={() => navigation.navigate("CrossCaseAi")} />
+          <ModuleTile theme={theme} icon="time-outline" label={LEXICON.modules.timeline} onPress={() => navigation.navigate("SystemTimeline")} />
+          <ModuleTile theme={theme} icon="sparkles-outline" label={LEXICON.modules.ai} onPress={() => navigation.navigate("CrossCaseAi")} />
           <ModuleTile
             theme={theme}
             icon="eye-outline"
-            label="Vigilância"
+            label={LEXICON.modules.watchlist}
             badge={alerts.watchlistHits > 0 ? alerts.watchlistHits : undefined}
             onPress={() => navigation.navigate("Watchlist")}
           />
