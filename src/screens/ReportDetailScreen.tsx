@@ -120,6 +120,23 @@ export default function ReportDetailScreen() {
     load();
   }, [load]);
 
+  useEffect(() => {
+    if (Platform.OS === "web" || !report) return;
+    const sensitive = report.classification === "SIGILOSO" || report.classification === "SECRETO";
+    if (!sensitive) return;
+    // Import local pra não puxar o módulo nativo no bundle web.
+    const ScreenCapture = require("expo-screen-capture");
+    const subscription = ScreenCapture.addScreenshotListener(() => {
+      api
+        .createIncident({
+          title: "Print de tela em caso sigiloso",
+          description: `Caso: ${report.title || report.id} (${report.classification})`,
+        })
+        .catch(() => {});
+    });
+    return () => subscription.remove();
+  }, [report?.id, report?.classification]);
+
   async function handleCreate() {
     if (!newTitle.trim()) return;
     setSaving(true);

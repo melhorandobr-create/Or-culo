@@ -20,6 +20,7 @@ import SystemTimelineScreen from "../screens/SystemTimelineScreen";
 import CrossCaseAiScreen from "../screens/CrossCaseAiScreen";
 import WatchlistScreen from "../screens/WatchlistScreen";
 import IntelligenceHubScreen from "../screens/IntelligenceHubScreen";
+import { usePushNotifications } from "../hooks/usePushNotifications";
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -55,6 +56,7 @@ function TabsScreen() {
 
 export default function RootNavigator() {
   const { isLoggedIn } = useAuth();
+  usePushNotifications(isLoggedIn);
 
   return (
     <NavigationContainer>

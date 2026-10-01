@@ -371,6 +371,13 @@ export const api = {
     });
   },
 
+  async registerPushToken(token: string) {
+    return request<{ ok: true }>("/push/register", {
+      method: "POST",
+      body: JSON.stringify({ token }),
+    });
+  },
+
   async getSignatureResult(id: string, signId: string) {
     return request<{ status: "pending" | "done" | "error"; pdfBase64?: string; message?: string }>(
       `/reports/${id}/sign/result?signId=${encodeURIComponent(signId)}`

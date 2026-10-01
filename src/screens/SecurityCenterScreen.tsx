@@ -6,6 +6,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { Theme } from "../theme";
 import { api, SecurityIncident, ApiError, NetworkMode, getNetworkMode, setNetworkMode } from "../api/client";
 import { useProximityAlerts } from "../hooks/useProximityAlerts";
+import { checkDeviceIntegrity, DeviceIntegrityReport } from "../utils/deviceIntegrity";
 
 type Panel = "none" | "mfaSetup" | "mfaDisable" | "changePassword" | "incident";
 
@@ -32,6 +33,7 @@ export default function SecurityCenterScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [posture, setPosture] = useState<{ mfaCoverage: number; mfaTotal: number; mfaMissing: number } | null>(null);
+  const [deviceReport, setDeviceReport] = useState<DeviceIntegrityReport | null>(null);
   const [incidents, setIncidents] = useState<SecurityIncident[]>([]);
   const [sessions, setSessions] = useState<any[]>([]);
   const [audit, setAudit] = useState<any[]>([]);
@@ -80,6 +82,20 @@ export default function SecurityCenterScreen() {
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    checkDeviceIntegrity().then((report) => {
+      setDeviceReport(report);
+      if (report.isCompromised) {
+        api
+          .createIncident({
+            title: "Postura de dispositivo comprometida",
+            description: report.findings.join("; "),
+          })
+          .catch(() => {});
+      }
+    });
+  }, []);
 
   function closePanel() {
     setPanel("none");
@@ -324,6 +340,36 @@ export default function SecurityCenterScreen() {
               </Text>
             </View>
             <Switch value={networkMode === "private"} onValueChange={toggleNetworkMode} />
+          </View>
+        </View>
+
+        <Text style={styles.sectionLabel}>Dispositivo</Text>
+        <View style={[styles.card, { padding: 0, marginBottom: theme.space.xxl }]}>
+          <View style={styles.row}>
+            <View
+              style={[
+                styles.rowIcon,
+                { backgroundColor: deviceReport?.isCompromised ? color.dangerTint : color.successTint },
+              ]}
+            >
+              <Ionicons
+                name={deviceReport?.isCompromised ? "warning-outline" : "shield-checkmark-outline"}
+                size={16}
+                color={deviceReport?.isCompromised ? color.danger : color.success}
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.rowTitle}>Postura deste aparelho</Text>
+              <Text style={styles.rowSubtitle}>
+                {!deviceReport
+                  ? "Verificando…"
+                  : !deviceReport.checked
+                  ? "Checagem não disponível nesta plataforma"
+                  : deviceReport.isCompromised
+                  ? deviceReport.findings.join(" · ")
+                  : "Nenhum sinal de comprometimento detectado"}
+              </Text>
+            </View>
           </View>
         </View>
 
