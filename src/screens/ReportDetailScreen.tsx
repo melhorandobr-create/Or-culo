@@ -751,6 +751,26 @@ function EntitiesTab({
   const [credibility, setCredibility] = useState<CredibilityCode>("3");
   const [saving, setSaving] = useState(false);
 
+  const [osintOpen, setOsintOpen] = useState(false);
+  const [osintSourceType, setOsintSourceType] = useState<"cnpj" | "domain" | "ctlogs" | "shodan">("cnpj");
+  const [osintTarget, setOsintTarget] = useState("");
+  const [osintLoading, setOsintLoading] = useState(false);
+
+  async function submitOsint() {
+    if (!osintTarget.trim()) return;
+    setOsintLoading(true);
+    try {
+      await api.lookupOsint(reportId, osintSourceType, osintTarget.trim());
+      setOsintTarget("");
+      setOsintOpen(false);
+      onCreated();
+    } catch (err) {
+      Alert.alert("Erro na consulta OSINT", err instanceof ApiError ? err.message : "Não foi possível concluir a consulta.");
+    } finally {
+      setOsintLoading(false);
+    }
+  }
+
   async function submit() {
     if (!name.trim()) return;
     setSaving(true);
@@ -775,6 +795,37 @@ function EntitiesTab({
 
   return (
     <View style={{ marginTop: theme.space.xl }}>
+      {isOwner && (
+        <AddToggle theme={theme} adding={osintOpen} label="Consultar OSINT" onToggle={() => setOsintOpen((v) => !v)} />
+      )}
+      {osintOpen && (
+        <View style={{ marginBottom: theme.space.lg, gap: 8 }}>
+          <Text style={{ fontSize: 10.5, fontWeight: "700", color: "#98A2B3", textTransform: "uppercase", letterSpacing: 0.5 }}>
+            Fonte
+          </Text>
+          <PillRow
+            theme={theme}
+            options={["cnpj", "domain", "ctlogs", "shodan"]}
+            value={osintSourceType}
+            onChange={(v) => setOsintSourceType(v as typeof osintSourceType)}
+          />
+          <TextInputLike
+            theme={theme}
+            value={osintTarget}
+            onChangeText={setOsintTarget}
+            placeholder={
+              osintSourceType === "cnpj"
+                ? "CNPJ (só números)"
+                : osintSourceType === "shodan"
+                ? "IP ou host"
+                : "Domínio (ex.: exemplo.com.br)"
+            }
+          />
+          <Pressable style={[stylesShared.primaryButton, osintLoading && { opacity: 0.6 }]} disabled={osintLoading} onPress={submitOsint}>
+            {osintLoading ? <ActivityIndicator color="#fff" /> : <Text style={stylesShared.primaryButtonText}>Consultar e anexar</Text>}
+          </Pressable>
+        </View>
+      )}
       {isOwner && <AddToggle theme={theme} adding={adding} label="Registrar entidade" onToggle={() => setAdding((v) => !v)} />}
       {adding && (
         <View style={{ marginBottom: theme.space.lg, gap: 8 }}>

@@ -519,6 +519,13 @@ export const api = {
     });
   },
 
+  async lookupOsint(reportId: string, sourceType: "cnpj" | "domain" | "ctlogs" | "shodan", target: string) {
+    return request<{ entity: any; raw: any }>(`/case-intelligence/${reportId}/osint`, {
+      method: "POST",
+      body: JSON.stringify({ sourceType, target }),
+    });
+  },
+
   async createCaseTimelineEvent(reportId: string, fields: { occurredAt: number; title: string; description?: string; source?: string; confidence?: string; factType?: string }) {
     return request(`/case-intelligence/${reportId}/timeline`, {
       method: "POST",
